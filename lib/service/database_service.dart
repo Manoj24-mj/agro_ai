@@ -61,7 +61,7 @@ class DatabaseService {
   // --- HISTORY SCREEN LOGIC ---
   static const String _historyKey = "scan_history";
 
-  static Future<void> saveHistory(String title, String summary, String details, String severity) async {
+  static Future<void> saveHistory(String title, String summary, String details, String severity, {String type = 'scan'}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       String? data = prefs.getString(_historyKey);
@@ -69,6 +69,7 @@ class DatabaseService {
       
       Map<String, dynamic> item = {
         'id': DateTime.now().millisecondsSinceEpoch,
+        'type': type,
         'title': title,
         'summary': summary,
         'details': details,

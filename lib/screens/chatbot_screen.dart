@@ -95,6 +95,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       });
       
       if (!kIsWeb) await DatabaseService.saveMessage("Bot", reply, false);
+      if (!kIsWeb) {
+        await DatabaseService.saveHistory(
+          "AI Conversation", 
+          msg, 
+          reply, 
+          "LOW", 
+          type: 'chat'
+        );
+      }
       if (_isVoiceEnabled) _voiceService.speak(reply); // Conditional Voice Output
     } catch (e) {
       setState(() {

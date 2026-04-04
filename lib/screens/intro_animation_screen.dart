@@ -52,7 +52,7 @@ class _IntroAnimationScreenState extends State<IntroAnimationScreen> with Ticker
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => isNewUser ? const CountrySelectionScreen() : const LoginScreen(),
+            pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(
                 opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),

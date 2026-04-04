@@ -15,8 +15,46 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   final _areaController = TextEditingController();
   final _extraController = TextEditingController();
   String _selectedCrop = "Rice";
+  String _selectedProduct = "";
   String _result = "";
   Map<String, dynamic>? _lastInputs;
+
+  final List<String> _fertilizers = [
+    "Urea", "Ammonium Nitrate", "Ammonium Sulphate", "CAN (Calcium Ammonium Nitrate)",
+    "SSP (Single Super Phosphate)", "TSP (Triple Super Phosphate)", "MAP (Mono-Ammonium Phosphate)", "DAP (Di-Ammonium Phosphate)",
+    "MOP (Muriate of Potash)", "Potassium Sulphate (SOP)", "Potassium Nitrate",
+    "NPK 19:19:19", "NPK 12:32:16", "NPK 10:20:20", "NPK 15:15:15",
+    "Magnesium Sulphate", "Zinc Sulphate", "Boron", "Ferrous Sulphate", "Manganese Sulphate", "Gypsum",
+    "Vermicompost", "Neem Cake", "Bonemeal", "Bloodmeal", "Fish Emulsion", "Kelp/Seaweed Extract"
+  ];
+  
+  final List<String> _pesticides = [
+    "Malathion", "Chlorpyrifos", "Dimethoate", "Acephate",
+    "Cypermethrin", "Deltamethrin", "Permethrin", "Bifenthrin",
+    "Imidacloprid", "Thiamethoxam", "Acetamiprid",
+    "Mancozeb (Fungicide)", "Carbendazim (Fungicide)", "Hexaconazole", "Azoxystrobin", "Tebuconazole", "Copper Oxychloride",
+    "Glyphosate (Herbicide)", "Paraquat", "2,4-D", "Atrazine",
+    "Neem Oil", "Spinosad", "BT (B. Thuringiensis)", "Pyrethrin", "Abamectin"
+  ];
+
+  final List<String> _globalCrops = [
+    "Rice", "Wheat", "Maize (Corn)", "Barley", "Oats", "Rye", "Sorghum", "Millet",
+    "Soybean", "Chickpea", "Black Gram (Urad)", "Green Gram (Moong)", "Lentil", "Pea", "Peanut", "Kidney Bean",
+    "Cotton", "Jute", "Flax", "Hemp",
+    "Sugarcane", "Sugar Beet",
+    "Sunflower", "Mustard/Rapeseed", "Canola", "Sesame", "Olive",
+    "Potato", "Tomato", "Onion", "Cabbage", "Carrot", "Broccoli", "Spinach", "Lettuce", "Pepper", "Eggplant", "Cucumber",
+    "Banana", "Mango", "Apple", "Grapes", "Pomegranate", "Orange", "Strawberry", "Pineapple", "Watermelon", "Avocado", "Cherry", "Peach",
+    "Coffee", "Tea", "Tobacco", "Cocoa", "Rubber"
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.type == "Fertilizer") _selectedProduct = _fertilizers.first;
+    if (widget.type == "Pesticide") _selectedProduct = _pesticides.first;
+    _selectedCrop = _globalCrops.first;
+  }
 
   void _calculate() {
     FocusScope.of(context).unfocus();
@@ -30,20 +68,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         "area": _areaController.text,
         "extra_input": _extraController.text,
         "cropType": _selectedCrop,
-        "calculatorType": widget.type
+        "calculatorType": widget.type,
+        "product": _selectedProduct
       };
       
       double area = double.tryParse(_areaController.text) ?? 1.0;
       
       if (widget.type == "Fertilizer") {
-        double n = 120 * area;
-        double p = 60 * area;
-        double k = 40 * area;
-        _result = "Recommended Urea: ${n.toStringAsFixed(1)} kg\nSSP: ${p.toStringAsFixed(1)} kg\nMOP: ${k.toStringAsFixed(1)} kg\nFor $_selectedCrop in $area Hectares";
+        double dose = 125 * area;
+        _result = "Recommended Product: $_selectedProduct\nTotal Quantity: ${dose.toStringAsFixed(1)} kg\nFor $_selectedCrop in $area Hectares";
       } else if (widget.type == "Pesticide") {
         double dose = 500 * area;
         double water = 200 * area;
-        _result = "Recommended Dose: ${dose.toStringAsFixed(1)} ml or g\nMix with water: ${water.toStringAsFixed(1)} Liters\nFor $_selectedCrop in $area Hectares";
+        _result = "Recommended Product: $_selectedProduct\nTotal Dose: ${dose.toStringAsFixed(1)} ml or g\nMix with water: ${water.toStringAsFixed(1)} Liters\nFor $_selectedCrop in $area Hectares";
       } else {
         double yieldEst = 3500 * area;
         double revenue = yieldEst * 20; // 20 per kg
@@ -173,7 +210,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   children: [
                     DropdownButtonFormField<String>(
                       value: _selectedCrop,
-                      items: ["Rice", "Wheat", "Maize", "Cotton", "Sugarcane"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      items: _globalCrops.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (v) => setState(() => _selectedCrop = v!),
                       decoration: InputDecoration(
                         labelText: "Crop Type", 
@@ -181,6 +218,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         prefixIcon: const Icon(Icons.grass, color: Color(0xFF2E7D32))
                       ),
                     ),
+                    if (widget.type != "Farming") ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _selectedProduct,
+                        items: (widget.type == "Fertilizer" ? _fertilizers : _pesticides)
+                            .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                        onChanged: (v) => setState(() => _selectedProduct = v!),
+                        decoration: InputDecoration(
+                          labelText: "Select ${widget.type}", 
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: Icon(widget.type == "Fertilizer" ? Icons.science : Icons.pest_control, color: const Color(0xFF2E7D32))
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     TextField(
                       controller: _areaController,

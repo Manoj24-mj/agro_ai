@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:agro_ai_app/localization.dart';
 import 'package:agro_ai_app/service/weather_service.dart';
 import 'package:agro_ai_app/service/voice_service.dart';
@@ -11,6 +14,8 @@ import 'history_screen.dart';
 import 'community_screen.dart';
 import 'market_screen.dart';
 import 'calculator_screen.dart'; 
+import 'crop_price_screen.dart'; 
+import 'user_activity_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,22 +31,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool _isLoadingWeather = false;
   final TextEditingController _cityController = TextEditingController();
   
-  // Replaced country with State
   String? _selectedStateName;
-  
   int _bottomNavIndex = 0;
   bool _darkMode = false;
   String userName = "Agro User";
   String userPhone = "+91 9876543210";
+  String farmSpecs = "Wheat & Corn • 15 Acres • Expert";
+  File? _profileImage;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _profileImage = File(pickedFile.path);
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _loadUserProfile();
     _vortexController = AnimationController(vsync: this, duration: const Duration(seconds: 15))..repeat();
     _vortexRotation = Tween<double>(begin: 0, end: 2 * 3.14159).animate(CurvedAnimation(parent: _vortexController, curve: Curves.linear));
     
-    // Use a small delay to ensure the UI builds before starting expensive location services
     Future.delayed(const Duration(milliseconds: 500), () => _fetchWeatherAuto());
+  }
+
+  Future<void> _loadUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userName = prefs.getString('userName') ?? "Agro User";
+      userPhone = prefs.getString('userPhone') ?? "+91 9876543210";
+    });
   }
 
   Future<void> _fetchWeatherForLocation(double lat, double lon, String name) async {
@@ -64,15 +87,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) {
-      return Lang.t("good_morning");
-    } else if (hour >= 12 && hour < 17) {
-      return Lang.t("good_afternoon");
-    } else if (hour >= 17 && hour < 21) {
-      return Lang.t("good_evening");
-    } else {
-      return Lang.t("good_night");
-    }
+    if (hour >= 5 && hour < 12) return Lang.t("good_morning");
+    if (hour >= 12 && hour < 17) return Lang.t("good_afternoon");
+    if (hour >= 17 && hour < 21) return Lang.t("good_evening");
+    return Lang.t("good_night");
   }
 
   @override
@@ -89,19 +107,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 icon: Icon(VoiceService.isMaleVoice ? Icons.face : Icons.face_3),
                 tooltip: "Switch Voice Gender",
                 onPressed: () {
-                  setState(() {
-                    VoiceService.isMaleVoice = !VoiceService.isMaleVoice;
-                  });
+                  setState(() => VoiceService.isMaleVoice = !VoiceService.isMaleVoice);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(VoiceService.isMaleVoice ? "Switched to Male AI Voice" : "Switched to Female AI Voice")));
                 },
               ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.language),
                 onSelected: (l) => setState(() => Lang.setLang(l)),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: "en", child: Text("English")),
-                  const PopupMenuItem(value: "kn", child: Text("ಕನ್ನಡ")),
-                  const PopupMenuItem(value: "hi", child: Text("हिंदी")),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: "en", child: Text("English")),
+                  PopupMenuItem(value: "kn", child: Text("ಕನ್ನಡ")),
+                  PopupMenuItem(value: "hi", child: Text("हिंदी")),
                 ],
               ),
             ],
@@ -115,11 +131,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         selectedItemColor: Colors.green[700],
         unselectedItemColor: Colors.grey,
         backgroundColor: _darkMode ? Colors.grey[850] : Colors.white,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Community'),
-          BottomNavigationBarItem(icon: Icon(Icons.store), label: 'Market'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.dashboard), label: Lang.t("home_tab")),
+          BottomNavigationBarItem(icon: const Icon(Icons.people), label: Lang.t("market_btn")), // Community
+          BottomNavigationBarItem(icon: const Icon(Icons.store), label: Lang.t("market_btn")), // Market
+          BottomNavigationBarItem(icon: const Icon(Icons.person), label: Lang.t("profile_tab")),
         ],
       ),
       body: _buildBody(),
@@ -157,18 +173,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               children: [
                 ListTile(
                   leading: Icon(Icons.settings, color: _darkMode ? Colors.white70 : Colors.grey[700]), 
-                  title: Text("Settings", style: TextStyle(color: _darkMode ? Colors.white : Colors.black)),
+                  title: Text(Lang.t("settings"), style: TextStyle(color: _darkMode ? Colors.white : Colors.black)),
                   onTap: () {
                     Navigator.pop(context); 
                     _showSettingsDialog();
                   },
                 ),
-                ListTile(leading: Icon(Icons.feedback, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Give Feedback", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
-                ListTile(leading: Icon(Icons.share, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Recommend Plantix", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
-                ListTile(leading: Icon(Icons.contact_mail, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Contact & Social", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
+                ListTile(leading: Icon(Icons.feedback, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Feedback", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
+                ListTile(leading: Icon(Icons.share, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Share", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
+                ListTile(leading: Icon(Icons.contact_mail, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Contact", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
                 ListTile(leading: Icon(Icons.favorite, color: Colors.red.shade400), title: Text("Thanks", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
-                ListTile(leading: Icon(Icons.gavel, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Legal Notices", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
-                ListTile(leading: Icon(Icons.help, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Quickstart", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
+                ListTile(leading: Icon(Icons.logout, color: Colors.red), title: Text(Lang.t("logout")), onTap: () => Navigator.of(context).pushReplacementNamed('/')),
               ],
             ),
           ),
@@ -223,16 +238,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Your Profile", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            Text(Lang.t("profile_tab"), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 32),
             GestureDetector(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile picture update coming soon!")));
-              },
+              onTap: _pickImage,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  CircleAvatar(radius: 50, backgroundColor: Colors.green.shade100, child: Icon(Icons.person, size: 60, color: Colors.green.shade800)),
+                  CircleAvatar(
+                    radius: 50, 
+                    backgroundColor: Colors.green.shade100, 
+                    backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
+                    child: _profileImage == null ? Icon(Icons.person, size: 60, color: Colors.green.shade800) : null,
+                  ),
                   Positioned(
                     bottom: 0,
                     right: MediaQuery.of(context).size.width / 2 - 50,
@@ -247,31 +265,48 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             const SizedBox(height: 24),
             ListTile(
-              title: const Text("Name"),
+              title: Text(Lang.t("name")),
               subtitle: Text(userName), 
-              trailing: IconButton(icon: const Icon(Icons.edit), onPressed: () => _editProfileField("Name", userName)),
+              trailing: IconButton(icon: const Icon(Icons.edit), onPressed: () => _editProfileField(Lang.t("name"), userName)),
             ),
             const Divider(),
-            const ListTile(
-              title: Text("Farm Specs"),
-              subtitle: Text("Wheat & Corn • 15 Acres • Expert"), 
-              trailing: Icon(Icons.grass, color: Colors.green),
+            ListTile(
+              title: Text(Lang.t("farm_specs")),
+              subtitle: Text(farmSpecs), 
+              trailing: IconButton(icon: const Icon(Icons.edit, color: Colors.green), onPressed: () => _editProfileField(Lang.t("farm_specs"), farmSpecs)),
             ),
             const Divider(),
-            const ListTile(
-              leading: Icon(Icons.post_add, color: Colors.teal),
-              title: Text("My Posts"),
-              trailing: Icon(Icons.chevron_right),
+            ListTile(
+              leading: const Icon(Icons.post_add, color: Colors.teal),
+              title: Text(Lang.t("my_posts")),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                 Navigator.push(context, MaterialPageRoute(builder: (context) => UserActivityScreen(
+                    title: Lang.t("my_posts"), 
+                    emptyMessage: "Your profile is empty. You haven't shared anything yet.",
+                    items: [], // Mock data
+                 )));
+              },
             ),
-            const ListTile(
-              leading: Icon(Icons.storefront, color: Colors.teal),
-              title: Text("My Listings"),
-              trailing: Icon(Icons.chevron_right),
+            ListTile(
+              leading: const Icon(Icons.storefront, color: Colors.teal),
+              title: Text(Lang.t("my_listings")),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                 Navigator.push(context, MaterialPageRoute(builder: (context) => UserActivityScreen(
+                    title: Lang.t("my_listings"), 
+                    emptyMessage: "You don't have any items listed in the marketplace.",
+                    items: [], // Mock data
+                 )));
+              },
             ),
-            const ListTile(
-              leading: Icon(Icons.history, color: Colors.teal),
-              title: Text("AI Scan History"),
-              trailing: Icon(Icons.chevron_right),
+            ListTile(
+              leading: const Icon(Icons.history, color: Colors.teal),
+              title: Text(Lang.t("usage_history")),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                 Navigator.push(context, MaterialPageRoute(builder: (context) => const UsageHistoryScreen()));
+              },
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -279,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 Navigator.of(context).pushReplacementNamed('/');
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade100, foregroundColor: Colors.red.shade800),
-              child: const Text("Logout"),
+              child: Text(Lang.t("logout")),
             )
           ],
         ),
@@ -305,6 +340,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 setState(() {
                   if (field == "Name") userName = controller.text;
                   if (field == "Phone Number") userPhone = controller.text;
+                  if (field == "Farm Specs") farmSpecs = controller.text;
                 });
                 Navigator.pop(context);
               },
@@ -359,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               onStateSelected: (name) {
                 setState(() {
                   _selectedStateName = name;
-                  _cityController.clear(); // Clear city when state changes
+                  _cityController.clear(); 
                 });
               },
               onCitySelected: (lat, lon, name) {
@@ -368,11 +404,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             const SizedBox(height: 30),
             
+            // 1. Core Action Vortex
             AnimatedBuilder(
               animation: _vortexController,
               builder: (context, child) {
                 return Container(
-                  height: 330,
+                  height: 220,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(35),
@@ -396,8 +433,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       Transform.rotate(
                         angle: -_vortexRotation.value * 2,
                         child: Container(
-                          height: 280,
-                          width: 280,
+                          height: 180,
+                          width: 180,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
@@ -407,8 +444,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       Transform.rotate(
                         angle: _vortexRotation.value * 1.5,
                         child: Container(
-                          height: 180,
-                          width: 180,
+                          height: 120,
+                          width: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
@@ -423,77 +460,122 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             alignment: Alignment.center,
                             color: Colors.white.withOpacity(0.1),
                             padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    _buildVortexAction(
-                                      context: context,
-                                      title: Lang.t("detector_btn"),
-                                      icon: Icons.camera_alt_outlined,
-                                      color: Colors.greenAccent.shade100,
-                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DetectorScreen())),
-                                      pulseValue: _vortexRotation.value,
-                                    ),
-                                    _buildVortexAction(
-                                      context: context,
-                                      title: "History",
-                                      icon: Icons.history,
-                                      color: Colors.purpleAccent.shade100,
-                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryScreen())),
-                                      pulseValue: _vortexRotation.value + 0.5,
-                                    ),
-                                    _buildVortexAction(
-                                      context: context,
-                                      title: Lang.t("saved_btn") == "saved_btn" ? "Saved" : Lang.t("saved_btn"),
-                                      icon: Icons.bookmark_border,
-                                      color: Colors.blueAccent.shade100,
-                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedScreen())),
-                                      pulseValue: _vortexRotation.value + 1.0,
-                                    ),
-                                    _buildVortexAction(
-                                      context: context,
-                                      title: Lang.t("chat_btn"),
-                                      icon: Icons.auto_awesome,
-                                      color: Colors.amberAccent.shade100,
-                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatbotScreen())),
-                                      pulseValue: _vortexRotation.value + 2.0,
-                                    ),
-                                  ],
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: Lang.t("detector_btn"),
+                                  icon: Icons.camera_alt_outlined,
+                                  color: Colors.greenAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DetectorScreen())),
+                                  pulseValue: _vortexRotation.value,
                                 ),
-                                const SizedBox(height: 24),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    _buildVortexAction(
-                                      context: context,
-                                      title: "Fertilizer",
-                                      icon: Icons.science_outlined,
-                                      color: Colors.orangeAccent.shade100,
-                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Fertilizer"))),
-                                      pulseValue: _vortexRotation.value + 0.3,
-                                    ),
-                                    _buildVortexAction(
-                                      context: context,
-                                      title: "Pesticide",
-                                      icon: Icons.pest_control,
-                                      color: Colors.redAccent.shade100,
-                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Pesticide"))),
-                                      pulseValue: _vortexRotation.value + 0.8,
-                                    ),
-                                    _buildVortexAction(
-                                      context: context,
-                                      title: "Farming",
-                                      icon: Icons.agriculture,
-                                      color: Colors.lightGreenAccent.shade100,
-                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Farming"))),
-                                      pulseValue: _vortexRotation.value + 1.3,
-                                    ),
-                                  ],
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: Lang.t("history_btn"),
+                                  icon: Icons.history,
+                                  color: Colors.purpleAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const UsageHistoryScreen())),
+                                  pulseValue: _vortexRotation.value + 0.5,
+                                ),
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: Lang.t("saved_btn"),
+                                  icon: Icons.bookmark_border,
+                                  color: Colors.blueAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedScreen())),
+                                  pulseValue: _vortexRotation.value + 1.0,
+                                ),
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: Lang.t("chat_btn"),
+                                  icon: Icons.auto_awesome,
+                                  color: Colors.amberAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatbotScreen())),
+                                  pulseValue: _vortexRotation.value + 2.0,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // 2. Separate Layout for Calculators Box
+            AnimatedBuilder(
+              animation: _vortexController,
+              builder: (context, child) {
+                return Container(
+                  height: 160,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(35),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.blueGrey.shade800,
+                        Colors.blueGrey.shade600,
+                      ],
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 15, spreadRadius: 1),
+                    ],
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                       ClipRRect(
+                        borderRadius: BorderRadius.circular(35),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                          child: Container(
+                            alignment: Alignment.center,
+                            color: Colors.white.withOpacity(0.1),
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: "Fertilizer",
+                                  icon: Icons.science_outlined,
+                                  color: Colors.orangeAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Fertilizer"))),
+                                  pulseValue: _vortexRotation.value + 0.3, // Still bounces softly
+                                ),
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: "Pesticide",
+                                  icon: Icons.pest_control,
+                                  color: Colors.redAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Pesticide"))),
+                                  pulseValue: _vortexRotation.value + 0.8,
+                                ),
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: "Farming",
+                                  icon: Icons.agriculture,
+                                  color: Colors.lightGreenAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Farming"))),
+                                  pulseValue: _vortexRotation.value + 1.3,
+                                ),
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: "Crop Price",
+                                  icon: Icons.currency_exchange,
+                                  color: Colors.greenAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CropPriceScreen())),
+                                  pulseValue: _vortexRotation.value + 1.8,
                                 ),
                               ],
                             ),
@@ -510,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       );
   }
 
-  Widget _buildVortexAction({
+  Widget _buildDashboardButton({
     required BuildContext context, 
     required String title, 
     required IconData icon, 
@@ -590,7 +672,6 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
   late AnimationController _animController;
   late Animation<double> _pulseAnimation;
 
-  // Added States locally
   final List<String> _indianStates = [
     "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
     "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
@@ -620,7 +701,6 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
     String temp = hasError ? "--" : (widget.weather?["main"]?["temp"]?.toString() ?? "--");
     String main = hasError ? (widget.weather!["error"] as String) : (widget.weather?["weather"]?[0]?["main"] ?? "--");
     
-    // Advanced Metrics
     double wind = (widget.weather?["wind"]?["speed"] ?? 0.0).toDouble();
     int aqi = (widget.weather?["aqi"] ?? 0).toInt();
     double uvi = (widget.weather?["uvi"] ?? 0.0).toDouble();
@@ -680,14 +760,13 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                 ),
                 const SizedBox(height: 20),
                 
-                // 3D Depth Temperature Display
                 Stack(
                   alignment: Alignment.center,
                   children: [
                     Text("$temp°C", style: TextStyle(
                       fontSize: 64, 
                       fontWeight: FontWeight.w900, 
-                      color: Colors.black.withOpacity(0.05), // Shadow offset
+                      color: Colors.black.withOpacity(0.05), 
                     )),
                     Positioned(
                       top: -4,
@@ -698,7 +777,6 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                 ),
                 const SizedBox(height: 25),
                 
-                // Glassmorphic Weather Metrics
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
@@ -713,7 +791,6 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                 
                 const SizedBox(height: 30),
                 
-                // Frosted Input Fields
                 _buildFrostedSearchField(
                   hint: "Step 1: Select State...",
                   icon: Icons.map,
@@ -749,7 +826,6 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                     optionsBuilder: (TextEditingValue textEditingValue) async {
                       if (textEditingValue.text.length < 3) return const Iterable.empty();
                       try { 
-                        // Modified to strictly pass "IN" as country code since State holds Indian states
                         return await WeatherService.searchCities(textEditingValue.text, "IN"); 
                       } catch (e) { 
                         return const Iterable.empty(); 

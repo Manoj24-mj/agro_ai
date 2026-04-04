@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 import 'onboarding_manual_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'country_selection_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,13 +34,45 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _checkOnboardingAndNavigate() async {
     final prefs = await SharedPreferences.getInstance();
     bool hasSeenManual = prefs.getBool('hasSeenManual') ?? false;
+    String? userCountry = prefs.getString('user_country');
     
     if (!mounted) return;
     
-    if (hasSeenManual) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
-    } else {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingManualScreen()));
+    // 1. If country is not set, go to CountrySelectionScreen first
+    if (userCountry == null) {
+       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CountrySelectionScreen()));
+       return;
+    }
+
+    // 2. If country is set but manual not seen, go to Manual
+    if (!hasSeenManual) {
+       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingManualScreen()));
+       return;
+    }
+
+    // 3. Otherwise, go home
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
+  }
+
+  // Google Sign In Logic
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final googleSignIn = GoogleSignIn();
+      final account = await googleSignIn.signIn();
+      
+      if (account != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userName', account.displayName ?? "Google User");
+        await prefs.setString('userPhone', account.email); // Using email as identifier
+        
+        _showSnackbar("Logged in as ${account.displayName}", Colors.green);
+        _checkOnboardingAndNavigate();
+      }
+    } catch (error) {
+      _showSnackbar("Google Sign-In failed: $error", Colors.red);
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -99,6 +133,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200) {
         if (mounted) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userName', _userNameIfKnown);
+          await prefs.setString('userPhone', fullPhone);
           _checkOnboardingAndNavigate();
         }
       } else {
@@ -175,6 +212,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200) {
         if (mounted) {
+           final prefs = await SharedPreferences.getInstance();
+           await prefs.setString('userName', _nameController.text);
+           await prefs.setString('userPhone', fullPhone);
            _checkOnboardingAndNavigate();
         }
       } else {
@@ -307,10 +347,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 24),
         OutlinedButton.icon(
-          onPressed: () {
-            // Simulate Google Login success
-            _checkOnboardingAndNavigate();
-          },
+          onPressed: _isLoading ? null : _handleGoogleSignIn,
           icon: Icon(Icons.email_outlined, color: Colors.red.shade500),
           label: const Text("Login with Gmail", style: TextStyle(color: Colors.black87)),
           style: OutlinedButton.styleFrom(

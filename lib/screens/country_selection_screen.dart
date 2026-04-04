@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
+import 'onboarding_manual_screen.dart';
+import 'home_screen.dart';
 
 class CountrySelectionScreen extends StatefulWidget {
   const CountrySelectionScreen({super.key});
@@ -30,10 +32,12 @@ class _CountrySelectionScreenState extends State<CountrySelectionScreen> {
     await prefs.setString('user_country', _selectedCountry!);
 
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+      bool hasSeenManual = prefs.getBool('hasSeenManual') ?? false;
+      if (hasSeenManual) {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeScreen()));
+      } else {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const OnboardingManualScreen()));
+      }
     }
   }
 

@@ -1,0 +1,21 @@
+fastapi
+uvicorn
+tensorflow
+pillow
+numpy
+opencv-python
+python-multipart
+pydantic
+requests
+
+# AI / ML
+scikit-learn
+
+# Firebase
+firebase-admin
+
+# WhatsApp Bot (Twilio)
+twilio
+
+# Environment variables
+python-dotenv

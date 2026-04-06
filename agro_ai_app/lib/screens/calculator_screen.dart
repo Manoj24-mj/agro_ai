@@ -13,9 +13,12 @@ class CalculatorScreen extends StatefulWidget {
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
   final _areaController = TextEditingController();
-  final _extraController = TextEditingController();
+  final _waterController = TextEditingController(text: "200"); // Standard 200L per unit area
+  final _doseController = TextEditingController(text: "500"); // Standard dose 
   String _selectedCrop = "Rice";
   String _selectedProduct = "";
+  String _selectedAreaUnit = "Hectares";
+  String _selectedDosageUnit = "ml"; // ml or kg
   String _result = "";
   Map<String, dynamic>? _lastInputs;
 
@@ -66,25 +69,41 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     setState(() {
       _lastInputs = {
         "area": _areaController.text,
-        "extra_input": _extraController.text,
+        "areaUnit": _selectedAreaUnit,
         "cropType": _selectedCrop,
         "calculatorType": widget.type,
-        "product": _selectedProduct
+        "product": _selectedProduct,
+        "targetDose": _doseController.text,
+        "dosageUnit": _selectedDosageUnit,
+        "waterRatio": _waterController.text
       };
       
       double area = double.tryParse(_areaController.text) ?? 1.0;
+      double targetDose = double.tryParse(_doseController.text) ?? (widget.type == "Fertilizer" ? 125.0 : 500.0);
+      double waterRatio = double.tryParse(_waterController.text) ?? 200.0;
+
+      // Conversion Factors (Internal standard is Hectares)
+      // 1 Hectare = 2.47 Acres
+      // 1 Acre = 40 Guntas
+      // 1 Hectare approx 100 Guntas (actually 98.8)
       
       if (widget.type == "Fertilizer") {
-        double dose = 125 * area;
-        _result = "Recommended Product: $_selectedProduct\nTotal Quantity: ${dose.toStringAsFixed(1)} kg\nFor $_selectedCrop in $area Hectares";
+        double totalDose = targetDose * area;
+        _result = "Recommended Product: $_selectedProduct\nTotal Quantity: ${totalDose.toStringAsFixed(1)} kg\nFor $_selectedCrop in $area $_selectedAreaUnit";
       } else if (widget.type == "Pesticide") {
-        double dose = 500 * area;
-        double water = 200 * area;
-        _result = "Recommended Product: $_selectedProduct\nTotal Dose: ${dose.toStringAsFixed(1)} ml or g\nMix with water: ${water.toStringAsFixed(1)} Liters\nFor $_selectedCrop in $area Hectares";
+        double totalDose = targetDose * area;
+        double totalWater = waterRatio * area;
+        _result = "Recommended Product: $_selectedProduct\nTotal Dose: ${totalDose.toStringAsFixed(1)} $_selectedDosageUnit\nMix with water: ${totalWater.toStringAsFixed(1)} Liters\nFor $_selectedCrop in $area $_selectedAreaUnit";
       } else {
-        double yieldEst = 3500 * area;
+        // For Yield estimation, we normalize to Hectares to keep existing formulas
+        double factor = 1.0;
+        if (_selectedAreaUnit == "Acres") factor = 0.4047;
+        else if (_selectedAreaUnit == "Guntas") factor = 0.0101;
+        
+        double areaInHa = area * factor;
+        double yieldEst = 3500 * areaInHa;
         double revenue = yieldEst * 20; // 20 per kg
-        _result = "Estimated Yield: ${yieldEst.toStringAsFixed(0)} kg\nEstimated Revenue: \$${revenue.toStringAsFixed(0)}\nFor $_selectedCrop in $area Hectares";
+        _result = "Estimated Yield: ${yieldEst.toStringAsFixed(0)} kg\nEstimated Revenue: ₹${revenue.toStringAsFixed(0)}\nFor $_selectedCrop in $area $_selectedAreaUnit";
       }
     });
   }
@@ -232,16 +251,81 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _areaController,
-                      decoration: InputDecoration(
-                        labelText: "Farm Area (Hectares)", 
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.landscape, color: Color(0xFF2E7D32))
-                      ),
-                      keyboardType: TextInputType.number,
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: _areaController,
+                            decoration: InputDecoration(
+                              labelText: "Farm Area", 
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              prefixIcon: const Icon(Icons.landscape, color: Color(0xFF2E7D32))
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 1,
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedAreaUnit,
+                            items: ["Hectares", "Acres", "Guntas"].map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12)))).toList(),
+                            onChanged: (v) => setState(() => _selectedAreaUnit = v!),
+                            decoration: InputDecoration(
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10)
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    
+                    if (widget.type != "Farming") ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: _doseController,
+                              decoration: InputDecoration(
+                                labelText: "Target Dosage", 
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                prefixIcon: const Icon(Icons.medication, color: Color(0xFF2E7D32)),
+                                suffixText: widget.type == "Fertilizer" ? "kg" : null
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          if (widget.type == "Pesticide") ...[
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 1,
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedDosageUnit,
+                                items: ["ml", "kg"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                                onChanged: (v) => setState(() => _selectedDosageUnit = v!),
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10)
+                                ),
+                              ),
+                            ),
+                          ]
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _waterController,
+                        decoration: InputDecoration(
+                          labelText: "Water Volume (Liters per area)", 
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.water_drop, color: Color(0xFF2E7D32)),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: _calculate,

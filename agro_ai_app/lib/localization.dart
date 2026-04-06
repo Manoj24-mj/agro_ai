@@ -37,6 +37,7 @@ class Lang {
       "saved_btn": "Saved",
       "history_btn": "History",
       "settings": "Settings",
+      "phone_number": "Phone Number",
     },
     "kn": {
       "title": "ಅಗ್ರೋ ಎಐ ಡಾಕ್ಟರ್ 🌱",
@@ -75,6 +76,7 @@ class Lang {
       "saved_btn": "ಉಳಿಸಲಾಗಿದೆ",
       "history_btn": "ಇತಿಹಾಸ",
       "settings": "ಸಂಯೋಜನೆಗಳು",
+      "phone_number": "ಫೋನ್ ಸಂಖ್ಯೆ",
     },
     "hi": {
       "title": "एग्रो एआई डॉक्टर 🌱",
@@ -113,6 +115,7 @@ class Lang {
       "saved_btn": "सेव",
       "history_btn": "इतिहास",
       "settings": "सेटिंग्स",
+      "phone_number": "फ़ोन नंबर",
     }
   };
 

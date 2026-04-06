@@ -7,6 +7,17 @@ class VoiceService {
 
   SpeechToText speech = SpeechToText();
   FlutterTts tts = FlutterTts();
+  List<dynamic>? _voices;
+
+  Future<void> init() async {
+    if (_voices == null) {
+      try {
+        _voices = await tts.getVoices;
+      } catch (e) {
+        _voices = [];
+      }
+    }
+  }
 
   String get _currentLocale {
     switch (Lang.lang) {
@@ -31,7 +42,8 @@ class VoiceService {
     await tts.setLanguage(_currentLocale);
     
     try {
-      List<dynamic> voices = await tts.getVoices;
+      if (_voices == null) await init();
+      List<dynamic> voices = _voices!;
       String? targetVoiceName;
       
       List<String> femaleIndicators = ["female", "zira", "samantha", "victoria", "karen", "fiona", "catherine", "-c-", "-a-", "siri", "woman"];

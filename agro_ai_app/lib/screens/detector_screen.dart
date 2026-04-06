@@ -126,7 +126,19 @@ class _DetectorScreenState extends State<DetectorScreen> {
     _controller.clear();
 
     try {
-      final weatherData = await WeatherService.getWeatherAuto();
+      // 1. Kick off parallel tasks immediately to avoid sequential waiting
+      final weatherFuture = WeatherService.getWeatherAuto();
+      final imageBytesFuture = image?.readAsBytes();
+
+      // Start processing prompts while waiting for background tasks
+      String basePrompt = image != null 
+          ? "Please analyze this plant image."
+          : "Based on this description: '$msg', analyze the plant issue.";
+          
+      // 2. Await both weather and image tasks in parallel (usually instant if cached)
+      final weatherData = await weatherFuture;
+      final imageBytes = await imageBytesFuture;
+
       String weatherContext = "";
       if (weatherData["error"] == null) {
         final loc = weatherData["name"] ?? "Unknown";
@@ -134,11 +146,7 @@ class _DetectorScreenState extends State<DetectorScreen> {
         final temp = weatherData["main"]?["temp"] ?? "Unknown";
         weatherContext = "\n\nCRITICAL CONTEXT: The user is currently in $loc. The temperature is $temp°C and relative humidity is $hum%. Please take this specific climate and location into account when diagnosing the plant disease, explaining why this weather might cause it, and providing climate-specific prevention steps.";
       }
-
-      String basePrompt = image != null 
-          ? "Please analyze this plant image."
-          : "Based on this description: '$msg', analyze the plant issue.";
-          
+      
       String prompt = '''
 $basePrompt
 
@@ -188,7 +196,7 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
       
       final result = await _geminiService.askGemini(
         prompt,
-        imageBytes: image != null ? await image.readAsBytes() : null,
+        imageBytes: imageBytes,
         languageCode: Lang.lang,
       );
 

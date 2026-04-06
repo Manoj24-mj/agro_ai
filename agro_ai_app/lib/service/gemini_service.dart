@@ -108,7 +108,7 @@ class GeminiService {
 
   Future<String> _makeRequest(String version, Map<String, dynamic> payload) async {
     final url = Uri.parse(
-        'https://generativelanguage.googleapis.com/$version/models/gemma-3-27b-it:generateContent?key=$_apiKey');
+        'https://generativelanguage.googleapis.com/$version/models/gemini-2.5-flash:generateContent?key=$_apiKey');
 
     try {
       final response = await http.post(

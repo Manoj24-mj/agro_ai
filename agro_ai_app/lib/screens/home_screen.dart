@@ -38,6 +38,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String userPhone = "+91 9876543210";
   String farmSpecs = "Wheat & Corn • 15 Acres • Expert";
   File? _profileImage;
+  bool _isAutoLocation = true;
+  double? _manualLat;
+  double? _manualLon;
+  String? _manualCityName;
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -64,7 +68,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     setState(() {
       userName = prefs.getString('userName') ?? "Agro User";
       userPhone = prefs.getString('userPhone') ?? "+91 9876543210";
+      farmSpecs = prefs.getString('farmSpecs') ?? "Wheat & Corn • 15 Acres • Expert";
+      _isAutoLocation = prefs.getBool('isAutoLocation') ?? true;
+      _manualLat = prefs.getDouble('manualLat');
+      _manualLon = prefs.getDouble('manualLon');
+      _manualCityName = prefs.getString('manualCityName');
     });
+    
+    // Trigger initial fetch after load
+    _fetchWeatherAuto();
+  }
+
+  Future<void> _pinManualLocation(double lat, double lon, String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isAutoLocation = false;
+      _manualLat = lat;
+      _manualLon = lon;
+      _manualCityName = name;
+    });
+    await prefs.setBool('isAutoLocation', false);
+    await prefs.setDouble('manualLat', lat);
+    await prefs.setDouble('manualLon', lon);
+    await prefs.setString('manualCityName', name);
+    
+    _fetchWeatherForLocation(lat, lon, name);
+  }
+
+  Future<void> _toggleAutoLocation() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _isAutoLocation = true);
+    await prefs.setBool('isAutoLocation', true);
+    _fetchWeatherAuto(forceRefresh: true);
   }
 
   Future<void> _fetchWeatherForLocation(double lat, double lon, String name) async {
@@ -76,9 +111,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
   }
 
-  Future<void> _fetchWeatherAuto() async {
+  Future<void> _fetchWeatherAuto({bool forceRefresh = false}) async {
     setState(() => _isLoadingWeather = true);
-    final data = await WeatherService.getWeatherAuto();
+    
+    if (!_isAutoLocation && _manualLat != null && _manualLon != null) {
+      await _fetchWeatherForLocation(_manualLat!, _manualLon!, _manualCityName ?? "Pinned");
+      return;
+    }
+
+    final data = await WeatherService.getWeatherAuto(forceRefresh: forceRefresh);
     setState(() {
       _weatherData = data;
       _isLoadingWeather = false;
@@ -271,6 +312,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             const Divider(),
             ListTile(
+              title: Text(Lang.t("phone_number")),
+              subtitle: Text(userPhone), 
+              trailing: IconButton(icon: const Icon(Icons.edit), onPressed: () => _editProfileField(Lang.t("phone_number"), userPhone)),
+            ),
+            const Divider(),
+            ListTile(
               title: Text(Lang.t("farm_specs")),
               subtitle: Text(farmSpecs), 
               trailing: IconButton(icon: const Icon(Icons.edit, color: Colors.green), onPressed: () => _editProfileField(Lang.t("farm_specs"), farmSpecs)),
@@ -323,24 +370,59 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _editProfileField(String field, String currentValue) {
-    TextEditingController controller = TextEditingController(text: currentValue);
+    // Determine if we are editing multi-part Farm Specs
+    bool isFarmSpecs = field == Lang.t("farm_specs");
+    
+    // For Farm Specs, split the existing value into components for individual editing
+    List<String> parts = currentValue.split(" • ");
+    TextEditingController c1 = TextEditingController(text: isFarmSpecs && parts.isNotEmpty ? parts[0] : currentValue);
+    TextEditingController c2 = TextEditingController(text: isFarmSpecs && parts.length > 1 ? parts[1] : "");
+    TextEditingController c3 = TextEditingController(text: isFarmSpecs && parts.length > 2 ? parts[2] : "");
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text("Edit $field"),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(hintText: "Enter new $field"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: isFarmSpecs 
+              ? [
+                  // Vertical inputs for Farm Specs components
+                  TextField(controller: c1, decoration: const InputDecoration(labelText: "Crops", hintText: "e.g. Wheat & Corn")),
+                  const SizedBox(height: 12),
+                  TextField(controller: c2, decoration: const InputDecoration(labelText: "Land Size", hintText: "e.g. 15 Acres")),
+                  const SizedBox(height: 12),
+                  TextField(controller: c3, decoration: const InputDecoration(labelText: "Experience Level", hintText: "e.g. Expert")),
+                ]
+              : [
+                  // Standard vertical input for singular fields
+                  TextField(
+                    controller: c1,
+                    decoration: InputDecoration(hintText: "Enter new $field"),
+                  ),
+                ],
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
                 setState(() {
-                  if (field == "Name") userName = controller.text;
-                  if (field == "Phone Number") userPhone = controller.text;
-                  if (field == "Farm Specs") farmSpecs = controller.text;
+                  // Robust localization-aware field updates
+                  if (field == Lang.t("name")) {
+                    userName = c1.text;
+                    prefs.setString('userName', userName);
+                  }
+                  if (field == Lang.t("phone_number")) {
+                    userPhone = c1.text;
+                    prefs.setString('userPhone', userPhone);
+                  }
+                  if (isFarmSpecs) {
+                    // Re-package vertical inputs back into formatted summary string
+                    farmSpecs = "${c1.text} • ${c2.text} • ${c3.text}";
+                    prefs.setString('farmSpecs', farmSpecs);
+                  }
                 });
                 Navigator.pop(context);
               },
@@ -390,7 +472,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _WeatherCard(
               weather: _weatherData,
               isLoading: _isLoadingWeather,
-              onRefresh: _fetchWeatherAuto,
+              isAuto: _isAutoLocation,
+              onRefresh: () => _fetchWeatherAuto(forceRefresh: true),
+              onToggleAuto: _toggleAutoLocation,
               selectedStateName: _selectedStateName,
               onStateSelected: (name) {
                 setState(() {
@@ -399,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 });
               },
               onCitySelected: (lat, lon, name) {
-                _fetchWeatherForLocation(lat, lon, name);
+                _pinManualLocation(lat, lon, name);
               },
             ),
             const SizedBox(height: 30),
@@ -650,6 +734,8 @@ class _WeatherCard extends StatefulWidget {
   final Map<String, dynamic>? weather;
   final bool isLoading;
   final VoidCallback onRefresh;
+  final bool isAuto;
+  final VoidCallback onToggleAuto;
   final String? selectedStateName;
   final Function(String name) onStateSelected;
   final Function(double lat, double lon, String name) onCitySelected;
@@ -658,6 +744,8 @@ class _WeatherCard extends StatefulWidget {
     required this.weather,
     required this.isLoading,
     required this.onRefresh,
+    required this.isAuto,
+    required this.onToggleAuto,
     required this.selectedStateName,
     required this.onStateSelected,
     required this.onCitySelected,
@@ -743,10 +831,25 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                           children: [
                             Text(cityName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
                             const SizedBox(width: 6),
-                            if (!hasError) const Icon(Icons.location_on, size: 16, color: Colors.teal),
+                            if (!hasError) Icon(widget.isAuto ? Icons.my_location : Icons.push_pin, size: 16, color: Colors.teal),
                           ],
                         ),
-                        Text(main, style: TextStyle(color: hasError ? Colors.redAccent : Colors.teal[700], fontSize: 14, fontWeight: FontWeight.w600)),
+                        Row(
+                          children: [
+                            Text(main, style: TextStyle(color: hasError ? Colors.redAccent : Colors.teal[700], fontSize: 14, fontWeight: FontWeight.w600)),
+                            if (!widget.isAuto) ...[
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: widget.onToggleAuto,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(5)),
+                                  child: const Text("Reset to Auto", style: TextStyle(fontSize: 10, color: Colors.teal, fontWeight: FontWeight.bold)),
+                                ),
+                              )
+                            ]
+                          ],
+                        ),
                       ],
                     ),
                     if (widget.isLoading)

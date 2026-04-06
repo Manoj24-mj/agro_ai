@@ -21,21 +21,80 @@ class WeatherService {
     "United Kingdom": "GB", "United States": "US", "Vietnam": "VN"
   };
 
-  static Future<Map<String, dynamic>> getWeatherAuto() async {
+  static Map<String, dynamic>? _lastAutoWeather;
+  static DateTime? _lastAutoFetch;
+
+  static Future<Map<String, dynamic>> getWeatherAuto({bool forceRefresh = false}) async {
+    if (!forceRefresh && _lastAutoWeather != null && _lastAutoFetch != null && 
+        DateTime.now().difference(_lastAutoFetch!) < const Duration(minutes: 15)) {
+      return _lastAutoWeather!;
+    }
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          return {"error": "Location permissions denied."};
+          return await _getWeatherViaIP(); // Fallback to IP if denied
         }
       }
       
-      Position position = await Geolocator.getCurrentPosition();
-      return fetchFullWeatherData(position.latitude, position.longitude, "Your Location");
+      if (permission == LocationPermission.deniedForever) {
+        return await _getWeatherViaIP(); // Fallback to IP if permanently denied
+      }
+      
+      Position? position = await Geolocator.getLastKnownPosition();
+      if (position == null) {
+        try {
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.medium, 
+            timeLimit: const Duration(seconds: 10)
+          );
+        } catch (_) {
+          return await _getWeatherViaIP(); // Fallback if GPS times out
+        }
+      }
+      
+      final lat = position.latitude;
+      final lon = position.longitude;
+      
+      // Reverse geocode to get actual city name
+      String cityName = "Your Location";
+      try {
+        final geoRes = await http.get(Uri.parse(
+          "https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json&zoom=10"
+        )).timeout(const Duration(seconds: 3));
+        if (geoRes.statusCode == 200) {
+          final geoData = jsonDecode(geoRes.body);
+          cityName = geoData["address"]?["city"] ?? 
+                     geoData["address"]?["town"] ?? 
+                     geoData["address"]?["village"] ?? 
+                     geoData["address"]?["state"] ?? "Your Location";
+        }
+      } catch (_) {}
+
+      final data = await fetchFullWeatherData(lat, lon, cityName);
+      _lastAutoWeather = data;
+      _lastAutoFetch = DateTime.now();
+      return data;
     } catch (e) {
-      return {"error": "Geolocator error: $e"};
+      return await _getWeatherViaIP(); // Fallback on any error
     }
+  }
+
+  static Future<Map<String, dynamic>> _getWeatherViaIP() async {
+    try {
+      // Use ipapi.co for better accuracy in India regions
+      final res = await http.get(Uri.parse("https://ipapi.co/json/")).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return fetchFullWeatherData(
+          double.parse(data["latitude"].toString()), 
+          double.parse(data["longitude"].toString()), 
+          data["city"] ?? "Current City"
+        );
+      }
+    } catch (_) {}
+    return {"error": "Unable to determine location automatically."};
   }
 
   static Future<Map<String, dynamic>> getWeatherManual(String city, [String? countryCode]) async {

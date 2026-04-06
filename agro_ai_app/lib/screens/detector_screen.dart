@@ -12,6 +12,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:agro_ai_app/service/database_service.dart';
+import 'package:agro_ai_app/service/data_service.dart';
 
 class DetectorScreen extends StatefulWidget {
   const DetectorScreen({super.key});
@@ -108,7 +109,7 @@ class _DetectorScreenState extends State<DetectorScreen> {
     });
   }
 
-  Future<void> _processMessage(String msg, {XFile? image}) async {
+  Future<void> _processMessage(String msg, {XFile? image, bool isRetry = false}) async {
     if (msg.trim().isEmpty && image == null) return;
 
     setState(() {
@@ -118,7 +119,7 @@ class _DetectorScreenState extends State<DetectorScreen> {
         imagePath: image?.path,
       ));
       _messages.add(DetectorMessage(
-        message: Lang.t("thinking"),
+        message: isRetry ? "🔄 Re-analyzing with high scrutiny..." : Lang.t("thinking"),
         isUser: false,
       ));
     });
@@ -126,16 +127,17 @@ class _DetectorScreenState extends State<DetectorScreen> {
     _controller.clear();
 
     try {
-      // 1. Kick off parallel tasks immediately to avoid sequential waiting
       final weatherFuture = WeatherService.getWeatherAuto();
       final imageBytesFuture = image?.readAsBytes();
 
-      // Start processing prompts while waiting for background tasks
       String basePrompt = image != null 
           ? "Please analyze this plant image."
           : "Based on this description: '$msg', analyze the plant issue.";
           
-      // 2. Await both weather and image tasks in parallel (usually instant if cached)
+      if (isRetry) {
+        basePrompt = "The previous result was flagged as incorrect. Please PERFORM A DEEP RE-ANALYSIS. Look for subtle symptoms, cross-reference with similar diseases, and provide an extremely cautious and detailed second opinion. " + basePrompt;
+      }
+
       final weatherData = await weatherFuture;
       final imageBytes = await imageBytesFuture;
 
@@ -220,7 +222,7 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
 
       setState(() {
         _messages.removeLast();
-        _messages.add(DetectorMessage(message: result, isUser: false));
+        _messages.add(DetectorMessage(message: result, isUser: false, originalImage: image));
       });
 
       if (_isVoiceEnabled) {
@@ -233,6 +235,50 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
       });
     }
     _scrollToBottom();
+  }
+
+  void _handleFeedback(DetectorMessage msg, bool isHelpful) {
+    if (isHelpful) {
+      AgroDataService.submitFeedback("AI Detector", msg.message.hashCode.toString(), "Helpful");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Thanks! Glad we could help. 🌾")));
+    } else {
+      _showDislikeOptions(msg);
+    }
+  }
+
+  void _showDislikeOptions(DetectorMessage msg) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("How can we improve?", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.refresh, color: Colors.blue),
+              title: const Text("Perform a Deep Re-Analysis"),
+              subtitle: const Text("Run AI with higher sensitivity settings."),
+              onTap: () {
+                Navigator.pop(context);
+                _processMessage("Requesting refined analysis...", image: msg.originalImage, isRetry: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.report_problem, color: Colors.orange),
+              title: const Text("Result is Inaccurate"),
+              onTap: () {
+                AgroDataService.submitFeedback("AI Detector", msg.message.hashCode.toString(), "Inaccurate");
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Feedback logged for AI improvement. 🤖")));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _startScanning() async {
@@ -362,7 +408,9 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
                   isUser: msg.isUser,
                   imagePath: msg.imagePath,
                   onVoice: () => _voiceService.speak(msg.message),
-                  onSave: msg.isUser || msg.message == Lang.t("thinking") ? null : () async {
+                  onHelpful: () => _handleFeedback(msg, true),
+                  onDislike: () => _handleFeedback(msg, false),
+                  onSave: msg.isUser || msg.message == Lang.t("thinking") || msg.message.contains("🔄") ? null : () async {
                      await DatabaseService.saveMessage("AI Detector", msg.message, false);
                      if (context.mounted) {
                        showDialog(
@@ -415,8 +463,9 @@ class DetectorMessage {
   final String message;
   final bool isUser;
   final String? imagePath;
+  final XFile? originalImage;
 
-  DetectorMessage({required this.message, required this.isUser, this.imagePath});
+  DetectorMessage({required this.message, required this.isUser, this.imagePath, this.originalImage});
 }
 
 class _DetectorBubble extends StatelessWidget {
@@ -424,6 +473,8 @@ class _DetectorBubble extends StatelessWidget {
   final bool isUser;
   final String? imagePath;
   final VoidCallback onVoice;
+  final VoidCallback? onHelpful;
+  final VoidCallback? onDislike;
   final VoidCallback? onSave;
   final VoidCallback? onShare;
   final VoidCallback? onScanAgain;
@@ -434,6 +485,8 @@ class _DetectorBubble extends StatelessWidget {
       required this.isUser, 
       this.imagePath, 
       required this.onVoice, 
+      this.onHelpful,
+      this.onDislike,
       this.onSave, 
       this.onShare, 
       this.onScanAgain
@@ -579,43 +632,48 @@ class _DetectorBubble extends StatelessWidget {
                 ],
               ),
             ),
-            if (!isUser && message.isNotEmpty && message != Lang.t("thinking"))
+            if (!isUser && message.isNotEmpty && message != Lang.t("thinking") && !message.contains("🔄"))
                Padding(
-                 padding: const EdgeInsets.only(top: 8.0),
+                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                  child: Row(
                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                    children: [
                      Row(
                        children: [
+                         if (onHelpful != null)
+                           IconButton(
+                             icon: const Icon(Icons.thumb_up_alt_outlined, size: 20, color: Colors.green),
+                             onPressed: onHelpful,
+                             tooltip: "Helpful",
+                           ),
+                         if (onDislike != null)
+                           IconButton(
+                             icon: const Icon(Icons.thumb_down_alt_outlined, size: 20, color: Colors.red),
+                             onPressed: onDislike,
+                             tooltip: "Not Helpful",
+                           ),
+                         const SizedBox(width: 8),
                          if (onSave != null)
                            IconButton(
-                             icon: const Icon(Icons.bookmark_add, size: 22, color: Colors.blue),
+                             icon: const Icon(Icons.bookmark_add_outlined, size: 20, color: Colors.blue),
                              tooltip: "Save Result",
                              onPressed: onSave,
                            ),
                          if (onShare != null)
                            IconButton(
-                             icon: const Icon(Icons.share, size: 22, color: Colors.orange),
+                             icon: const Icon(Icons.share_outlined, size: 20, color: Colors.orange),
                              tooltip: "Share Result",
                              onPressed: onShare,
-                           ),
-                         if (onScanAgain != null)
-                           IconButton(
-                             icon: const Icon(Icons.document_scanner, size: 22, color: Colors.purple),
-                             tooltip: "Scan Again",
-                             onPressed: onScanAgain,
                            ),
                        ],
                      ),
                      IconButton(
                        icon: Container(
                          padding: const EdgeInsets.all(8),
-                         decoration: BoxDecoration(color: Colors.green[50], shape: BoxShape.circle),
+                         decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
                          child: Icon(Icons.volume_up, size: 20, color: Colors.green[700]),
                        ),
                        onPressed: onVoice,
-                       padding: EdgeInsets.zero,
-                       constraints: const BoxConstraints(),
                      ),
                    ],
                  ),

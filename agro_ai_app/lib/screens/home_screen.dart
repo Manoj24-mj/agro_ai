@@ -16,6 +16,10 @@ import 'market_screen.dart';
 import 'calculator_screen.dart'; 
 import 'crop_price_screen.dart'; 
 import 'user_activity_screen.dart'; 
+import 'crops_module_screen.dart';
+import 'disease_alert_screen.dart';
+import 'tips_screen.dart';
+import 'analytics_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -488,6 +492,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             const SizedBox(height: 30),
             
+            // 1. AI Command Center Branding
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                   Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.psychology_outlined, color: Colors.green, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "AI Command Center",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            
             // 1. Core Action Vortex
             AnimatedBuilder(
               animation: _vortexController,
@@ -593,6 +617,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             
             const SizedBox(height: 24),
             
+            // 2. Agro AI Tools Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                   Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.teal.withOpacity(0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.terminal_outlined, color: Colors.teal, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "Agro AI Tools",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            
             // 2. Separate Layout for Calculators Box
             AnimatedBuilder(
               animation: _vortexController,
@@ -671,6 +715,101 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 );
               }
             ),
+            
+            const SizedBox(height: 24),
+
+            // 3. Smart Agriculture Modules Logo & Title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.settings_input_component_outlined, color: Colors.green, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "Agro AI Control Panel",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 4. Smart Modules Grid (Crops, Tips, Alerts, Analytics) 
+            AnimatedBuilder(
+              animation: _vortexController,
+              builder: (context, child) {
+                return Container(
+                  height: 160,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(35),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.teal.shade900,
+                        Colors.green.shade900,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(color: Colors.green.withOpacity(0.2), blurRadius: 20, spreadRadius: 2),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(35),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        color: Colors.white.withOpacity(0.05),
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildDashboardButton(
+                              context: context,
+                              title: "Crops DB",
+                              icon: Icons.grass,
+                              color: Colors.greenAccent,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CropsModuleScreen())),
+                              pulseValue: _vortexRotation.value + 0.5,
+                            ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: "Disease Alert",
+                              icon: Icons.notification_important,
+                              color: Colors.redAccent,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DiseaseAlertScreen())),
+                              pulseValue: _vortexRotation.value + 1.0,
+                            ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: "Agro Tips",
+                              icon: Icons.lightbulb_outline,
+                              color: Colors.yellowAccent,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CultivationTipsScreen())),
+                              pulseValue: _vortexRotation.value + 1.5,
+                            ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: "Analytics",
+                              icon: Icons.analytics_outlined,
+                              color: Colors.blueAccent,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AnalyticsScreen())),
+                              pulseValue: _vortexRotation.value + 2.0,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+            ),
+            const SizedBox(height: 30),
           ],
         ),
       );

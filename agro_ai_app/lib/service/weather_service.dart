@@ -29,72 +29,69 @@ class WeatherService {
         DateTime.now().difference(_lastAutoFetch!) < const Duration(minutes: 15)) {
       return _lastAutoWeather!;
     }
+    
     try {
+      // Tier 1: Try High-Accuracy GPS
       LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          return await _getWeatherViaIP(); // Fallback to IP if denied
+      if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+        Position? pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 5),
+        ).catchError((_) => Geolocator.getLastKnownPosition());
+        
+        if (pos != null) {
+          String city = await _reverseGeocode(pos.latitude, pos.longitude);
+          final data = await fetchFullWeatherData(pos.latitude, pos.longitude, city);
+          _updateAutoCache(data);
+          return data;
         }
       }
       
-      if (permission == LocationPermission.deniedForever) {
-        return await _getWeatherViaIP(); // Fallback to IP if permanently denied
-      }
-      
-      Position? position = await Geolocator.getLastKnownPosition();
-      if (position == null) {
-        try {
-          position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.medium, 
-            timeLimit: const Duration(seconds: 10)
-          );
-        } catch (_) {
-          return await _getWeatherViaIP(); // Fallback if GPS times out
-        }
-      }
-      
-      final lat = position.latitude;
-      final lon = position.longitude;
-      
-      // Reverse geocode to get actual city name
-      String cityName = "Your Location";
-      try {
-        final geoRes = await http.get(Uri.parse(
-          "https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json&zoom=10"
-        )).timeout(const Duration(seconds: 3));
-        if (geoRes.statusCode == 200) {
-          final geoData = jsonDecode(geoRes.body);
-          cityName = geoData["address"]?["city"] ?? 
-                     geoData["address"]?["town"] ?? 
-                     geoData["address"]?["village"] ?? 
-                     geoData["address"]?["state"] ?? "Your Location";
-        }
-      } catch (_) {}
-
-      final data = await fetchFullWeatherData(lat, lon, cityName);
-      _lastAutoWeather = data;
-      _lastAutoFetch = DateTime.now();
-      return data;
+      // Tier 2: Fallback to IP Geolocation
+      return await _getWeatherViaIP();
     } catch (e) {
-      return await _getWeatherViaIP(); // Fallback on any error
+      return await _getWeatherViaIP();
     }
+  }
+
+  static Future<String> _reverseGeocode(double lat, double lon) async {
+    try {
+      final res = await http.get(Uri.parse(
+        "https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json&zoom=10"
+      )).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        return data["address"]?["city"] ?? 
+               data["address"]?["state_district"] ?? 
+               data["address"]?["state"] ?? "Your Farm";
+      }
+    } catch (_) {}
+    return "Your Farm";
   }
 
   static Future<Map<String, dynamic>> _getWeatherViaIP() async {
     try {
-      // Use ipapi.co for better accuracy in India regions
-      final res = await http.get(Uri.parse("https://ipapi.co/json/")).timeout(const Duration(seconds: 4));
+      // Use ip-api.com for higher reliability in South Asia
+      final res = await http.get(Uri.parse("http://ip-api.com/json")).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        return fetchFullWeatherData(
-          double.parse(data["latitude"].toString()), 
-          double.parse(data["longitude"].toString()), 
-          data["city"] ?? "Current City"
-        );
+        if (data["status"] == "success") {
+           final weatherData = await fetchFullWeatherData(
+             double.parse(data["lat"].toString()), 
+             double.parse(data["lon"].toString()), 
+             data["city"] ?? data["regionName"] ?? "Current City"
+           );
+           _updateAutoCache(weatherData);
+           return weatherData;
+        }
       }
     } catch (_) {}
     return {"error": "Unable to determine location automatically."};
+  }
+
+  static void _updateAutoCache(Map<String, dynamic> data) {
+    _lastAutoWeather = data;
+    _lastAutoFetch = DateTime.now();
   }
 
   static Future<Map<String, dynamic>> getWeatherManual(String city, [String? countryCode]) async {

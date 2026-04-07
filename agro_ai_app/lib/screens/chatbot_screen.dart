@@ -135,19 +135,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: Text(Lang.t("title")),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ClipOval(
-            child: Image.asset(
-              'assets/images/logo.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => 
-                const Icon(Icons.psychology, color: Colors.green), // Premium fallback
+        title: Row(
+          children: [
+            ClipOval(
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => 
+                  const Icon(Icons.psychology, color: Colors.white, size: 24),
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Text(Lang.t("title")),
+          ],
         ),
         actions: [
           IconButton(

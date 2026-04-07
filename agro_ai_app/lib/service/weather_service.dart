@@ -31,23 +31,34 @@ class WeatherService {
     }
     
     try {
-      // Tier 1: Try High-Accuracy GPS
+      // Tier 0: Check if service is enabled
+      bool isEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!isEnabled) return await _getWeatherViaIP();
+
+      // Tier 0.5: Request Permissions explicitly
       LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      
       if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+        // Tier 1: Try HIGH ACCURACY GPS (Critical for Bengaluru vs Chennai)
         Position? pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-          timeLimit: const Duration(seconds: 5),
+          desiredAccuracy: LocationAccuracy.high, // Use High for better triangulation
+          timeLimit: const Duration(seconds: 7),  // More time for better lock
         ).catchError((_) => Geolocator.getLastKnownPosition());
         
-        if (pos != null) {
+        if (pos != null && pos.latitude != 0) {
           String city = await _reverseGeocode(pos.latitude, pos.longitude);
           final data = await fetchFullWeatherData(pos.latitude, pos.longitude, city);
-          _updateAutoCache(data);
-          return data;
+          if (data["error"] == null) {
+            _updateAutoCache(data);
+            return data;
+          }
         }
       }
       
-      // Tier 2: Fallback to IP Geolocation
+      // Tier 2: Fallback to IP Geolocation (often shows Chennai for South India ISPs)
       return await _getWeatherViaIP();
     } catch (e) {
       return await _getWeatherViaIP();
@@ -71,22 +82,20 @@ class WeatherService {
 
   static Future<Map<String, dynamic>> _getWeatherViaIP() async {
     try {
-      // Use ip-api.com for higher reliability in South Asia
-      final res = await http.get(Uri.parse("http://ip-api.com/json")).timeout(const Duration(seconds: 4));
+      // Use ipapi.co (HTTPS) for better web browser compatibility (blocks insecure http)
+      final res = await http.get(Uri.parse("https://ipapi.co/json/")).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (data["status"] == "success") {
-           final weatherData = await fetchFullWeatherData(
-             double.parse(data["lat"].toString()), 
-             double.parse(data["lon"].toString()), 
-             data["city"] ?? data["regionName"] ?? "Current City"
-           );
-           _updateAutoCache(weatherData);
-           return weatherData;
-        }
+        final weatherData = await fetchFullWeatherData(
+          double.parse(data["latitude"].toString()), 
+          double.parse(data["longitude"].toString()), 
+          data["city"] ?? data["region"] ?? "Current City"
+        );
+        _updateAutoCache(weatherData);
+        return weatherData;
       }
     } catch (_) {}
-    return {"error": "Unable to determine location automatically."};
+    return {"error": "Location detection failed. Please select state manually below."};
   }
 
   static void _updateAutoCache(Map<String, dynamic> data) {
@@ -121,20 +130,42 @@ class WeatherService {
     }
   }
 
+  static final Map<String, List<Map<String, dynamic>>> _searchCache = {};
+  
   // Real-time Global City Search with Country Filtering
   static Future<List<Map<String, dynamic>>> searchCities(String query, [String? countryCode]) async {
-    if (query.length < 3) return [];
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.length < 3) return [];
+    
+    // 1. Check local search cache for rapid typing
+    if (_searchCache.containsKey(cleanQuery)) {
+      return _searchCache[cleanQuery]!;
+    }
+
     try {
       var res = await http.get(Uri.parse(
-        "https://geocoding-api.open-meteo.com/v1/search?name=$query&count=10&language=en&format=json"
+        "https://geocoding-api.open-meteo.com/v1/search?name=$cleanQuery&count=10&language=en&format=json"
       ));
+
+      // 2. Handle Rate Limit (Error 429)
+      if (res.statusCode == 429) {
+          print("Geocoding rate limit, retrying...");
+          await Future.delayed(const Duration(seconds: 2));
+          res = await http.get(Uri.parse(
+            "https://geocoding-api.open-meteo.com/v1/search?name=$cleanQuery&count=10&language=en&format=json"
+          ));
+      }
+
       if (res.statusCode == 200) {
         var data = jsonDecode(res.body);
         if (data["results"] != null) {
           var results = List<Map<String, dynamic>>.from(data["results"]);
           if (countryCode != null) {
-             return results.where((e) => e["country_code"] == countryCode).toList();
+             results = results.where((e) => e["country_code"] == countryCode).toList();
           }
+          
+          // 3. Update Cache
+          _searchCache[cleanQuery] = results;
           return results;
         }
       }
@@ -160,19 +191,31 @@ class WeatherService {
     }
 
     try {
-      // Parallel requests for Weather and Air Quality
-      final responses = await Future.wait([
-        http.get(Uri.parse(
-          "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,uv_index&timezone=auto"
-        )),
-        http.get(Uri.parse(
-          "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=$lat&longitude=$lon&current=us_aqi"
-        )),
-      ]);
+      // Robust Parallel Fetch: If Air Quality fails, don't crash the main Weather request
+      final weatherFuture = http.get(Uri.parse(
+        "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,uv_index&timezone=auto"
+      )).timeout(const Duration(seconds: 8));
 
-      if (responses[0].statusCode == 200) {
-        var weatherData = jsonDecode(responses[0].body)["current"];
-        var airData = responses[1].statusCode == 200 ? jsonDecode(responses[1].body)["current"] : null;
+      final aqiFuture = http.get(Uri.parse(
+        "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=$lat&longitude=$lon&current=us_aqi"
+      )).timeout(const Duration(seconds: 5)).catchError((_) => http.Response('{"error":true}', 404));
+
+      var weatherRes = await weatherFuture;
+      
+      // Handle Rate Limit (Error 429) with simple retry
+      if (weatherRes.statusCode == 429) {
+          print("Rate limit hit, waiting 2s then retrying...");
+          await Future.delayed(const Duration(seconds: 2));
+          weatherRes = await http.get(Uri.parse(
+            "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,uv_index&timezone=auto"
+          )).timeout(const Duration(seconds: 8));
+      }
+
+      final aqiRes = await aqiFuture;
+
+      if (weatherRes.statusCode == 200) {
+        var weatherData = jsonDecode(weatherRes.body)["current"];
+        var airData = aqiRes.statusCode == 200 ? jsonDecode(aqiRes.body)["current"] : null;
         
         final result = {
           "name": cityName,
@@ -182,20 +225,38 @@ class WeatherService {
             "pressure": weatherData["surface_pressure"],
           },
           "wind": {"speed": weatherData["wind_speed_10m"]},
-          "uvi": weatherData["uv_index"],
+          "uvi": weatherData["uv_index"] ?? 0.0,
           "aqi": airData?["us_aqi"] ?? 0,
           "weather": [{"main": _getWeatherDesc(weatherData["temperature_2m"])}],
         };
 
-        // Update Cache
+        // Cache persistent data
         _cache[cacheKey] = result;
         _cacheTime[cacheKey] = DateTime.now();
 
         return result;
       }
-      return {"error": "Weather data currently unavailable."};
+      
+      // If error occurs, try to return LAST KNOWN CACHED DATA as a fallback
+      if (_cache.containsKey(cacheKey)) {
+        return _cache[cacheKey]!;
+      }
+      
+      return {"error": "Weather service returned ${weatherRes.statusCode}. Try again in 1 min."};
     } catch (e) {
-      return {"error": "Network error: $e"};
+      if (_cache.containsKey(cacheKey)) {
+        return _cache[cacheKey]!;
+      }
+      // Dedicated handling for common Web/Network errors (CORS, DNS, Firewall)
+      String error = e.toString();
+      if (error.contains("Failed to fetch") || 
+          error.contains("SocketException") || 
+          error.contains("XMLHttpRequest") ||
+          error.contains("ClientException") ||
+          error.contains("error")) {
+         return {"error": "Connection failed. Please check internet or search manually."};
+      }
+      return {"error": "Weather data unavailable. Tap refresh or pick city."};
     }
   }
 

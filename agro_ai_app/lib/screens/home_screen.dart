@@ -42,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String userPhone = "+91 9876543210";
   String farmSpecs = "Wheat & Corn • 15 Acres • Expert";
   File? _profileImage;
+  DateTime? _lastRefreshTime;
   bool _isAutoLocation = true;
   double? _manualLat;
   double? _manualLon;
@@ -78,9 +79,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _manualLon = prefs.getDouble('manualLon');
       _manualCityName = prefs.getString('manualCityName');
     });
-    
-    // Trigger initial fetch after load
-    _fetchWeatherAuto();
   }
 
   Future<void> _pinManualLocation(double lat, double lon, String name) async {
@@ -106,17 +104,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _fetchWeatherAuto(forceRefresh: true);
   }
 
-  Future<void> _fetchWeatherForLocation(double lat, double lon, String name) async {
-    setState(() => _isLoadingWeather = true);
-    final data = await WeatherService.fetchFullWeatherData(lat, lon, name);
-    setState(() {
-      _weatherData = data;
-      _isLoadingWeather = false;
-    });
-  }
-
   Future<void> _fetchWeatherAuto({bool forceRefresh = false}) async {
+    // 5-second cooldown for refresh button to protect API limits
+    if (forceRefresh && _lastRefreshTime != null && 
+        DateTime.now().difference(_lastRefreshTime!) < const Duration(seconds: 5)) {
+      return; 
+    }
+    
     setState(() => _isLoadingWeather = true);
+    if (forceRefresh) _lastRefreshTime = DateTime.now();
     
     if (!_isAutoLocation && _manualLat != null && _manualLon != null) {
       await _fetchWeatherForLocation(_manualLat!, _manualLon!, _manualCityName ?? "Pinned");
@@ -124,6 +120,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
 
     final data = await WeatherService.getWeatherAuto(forceRefresh: forceRefresh);
+    setState(() {
+      _weatherData = data;
+      _isLoadingWeather = false;
+    });
+  }
+
+  Future<void> _fetchWeatherForLocation(double lat, double lon, String name) async {
+    setState(() => _isLoadingWeather = true);
+    final data = await WeatherService.fetchFullWeatherData(lat, lon, name);
     setState(() {
       _weatherData = data;
       _isLoadingWeather = false;
@@ -923,10 +928,17 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
 
   @override
   Widget build(BuildContext context) {
-    bool hasError = widget.weather?["error"] != null;
-    String cityName = hasError ? "Error" : (widget.weather?["name"] ?? "--");
-    String temp = hasError ? "--" : (widget.weather?["main"]?["temp"]?.toString() ?? "--");
-    String main = hasError ? (widget.weather!["error"] as String) : (widget.weather?["weather"]?[0]?["main"] ?? "--");
+    bool containsError = widget.weather?["error"] != null;
+    String cityName = containsError ? widget.selectedStateName ?? "Location Error" : (widget.weather?["name"] ?? "--");
+    String temp = containsError ? "--" : (widget.weather?["main"]?["temp"]?.toString() ?? "--");
+    
+    // Simplify technical errors for users (especially 'Failed to fetch' on Web)
+    String errorMsg = containsError ? widget.weather!["error"].toString() : "";
+    if (errorMsg.contains("Failed to fetch") || errorMsg.contains("Network error")) {
+       errorMsg = "Connection lost. Tap refresh below.";
+    }
+    
+    String main = containsError ? errorMsg : (widget.weather?["weather"]?[0]?["main"] ?? "--");
     
     double wind = (widget.weather?["wind"]?["speed"] ?? 0.0).toDouble();
     int aqi = (widget.weather?["aqi"] ?? 0).toInt();
@@ -963,33 +975,50 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(cityName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
-                            const SizedBox(width: 6),
-                            if (!hasError) Icon(widget.isAuto ? Icons.my_location : Icons.push_pin, size: 16, color: Colors.teal),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Text(main, style: TextStyle(color: hasError ? Colors.redAccent : Colors.teal[700], fontSize: 14, fontWeight: FontWeight.w600)),
-                            if (!widget.isAuto) ...[
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: widget.onToggleAuto,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(5)),
-                                  child: const Text("Reset to Auto", style: TextStyle(fontSize: 10, color: Colors.teal, fontWeight: FontWeight.bold)),
+                    Expanded( // Expand Column to take space
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible( // Avoid long city name overflow
+                                child: Text(
+                                  cityName, 
+                                  maxLines: 1, 
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)
                                 ),
-                              )
-                            ]
-                          ],
-                        ),
-                      ],
+                              ),
+                              const SizedBox(width: 6),
+                              if (!containsError) Icon(widget.isAuto ? Icons.my_location : Icons.push_pin, size: 16, color: Colors.teal),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Flexible( // Critical fix for overflow
+                                child: Text(
+                                  main, 
+                                  maxLines: 2, 
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: containsError ? Colors.redAccent : Colors.teal[700], fontSize: 13, fontWeight: FontWeight.w600)
+                                ),
+                              ),
+                              if (!widget.isAuto) ...[
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: widget.onToggleAuto,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(5)),
+                                    child: const Text("Reset", style: TextStyle(fontSize: 10, color: Colors.teal, fontWeight: FontWeight.bold)),
+                                  ),
+                                )
+                              ]
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     if (widget.isLoading)
                       const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.teal))

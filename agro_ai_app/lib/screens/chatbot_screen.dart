@@ -6,6 +6,8 @@ import 'package:agro_ai_app/localization.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:agro_ai_app/service/gemini_service.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:agro_ai_app/service/firebase_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
 
@@ -27,6 +29,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   void initState() {
     super.initState();
     _loadMessages();
+    Lang().addListener(_onLangChanged);
+  }
+
+  void _onLangChanged() { if (mounted) setState(() {}); }
+
+  @override
+  void dispose() {
+    Lang().removeListener(_onLangChanged);
+    super.dispose();
   }
 
   Future<void> _loadMessages() async {
@@ -34,7 +45,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       setState(() {
         _messages.add(EdgeChat(
           user: "Bot", 
-          message: "Hello! I’m Agro AI Doctor, your smart assistant for plant health and farming guidance.\n\nI can help you identify crop diseases, suggest treatments, and provide personalized farming advice.\n\nTo get started, please tell me:\n• Which crop or plant are you working with?\n• What issue are you noticing?\n• Your location (for accurate recommendations)\n\nYou can also upload a photo for a more precise diagnosis.\n\nLet’s solve this together 🌱", 
+          message: Lang.t("chatbot_welcome"), 
           isUser: false
         ));
       });
@@ -46,7 +57,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       if (saved.isEmpty) {
         _messages.add(EdgeChat(
           user: "Bot", 
-          message: "Hello! I’m Agro AI Doctor, your smart assistant for plant health and farming guidance.\n\nI can help you identify crop diseases, suggest treatments, and provide personalized farming advice.\n\nTo get started, please tell me:\n• Which crop or plant are you working with?\n• What issue are you noticing?\n• Your location (for accurate recommendations)\n\nYou can also upload a photo for a more precise diagnosis.\n\nLet’s solve this together 🌱", 
+          message: Lang.t("chatbot_welcome"), 
           isUser: false
         ));
       } else {
@@ -94,16 +105,20 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         _messages.add(EdgeChat(user: "Bot", message: reply, isUser: false));
       });
       
-      if (!kIsWeb) await DatabaseService.saveMessage("Bot", reply, false);
+      // Save to Local History AND Firebase (Now enabled for Web!)
       if (!kIsWeb) {
-        await DatabaseService.saveHistory(
-          "AI Conversation", 
-          msg, 
-          reply, 
-          "LOW", 
-          type: 'chat'
-        );
+        await DatabaseService.saveMessage("Bot", reply, false);
       }
+      
+      await DatabaseService.saveHistory(
+        "AI Conversation", 
+        msg, 
+        reply, 
+        "LOW", 
+        type: 'chat'
+      );
+          // (Automatic Cloud upload removed. Manual save button added below instead.)
+      
       if (_isVoiceEnabled) _voiceService.speak(reply); // Conditional Voice Output
     } catch (e) {
       setState(() {
@@ -186,6 +201,26 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   message: chat.message,
                   isUser: chat.isUser,
                   onVoice: () => _voiceService.speak(chat.message),
+                  onSave: chat.isUser || chat.message == Lang.t("thinking") ? null : () async {
+                     final prefs = await SharedPreferences.getInstance();
+                     final phone = prefs.getString('userPhone') ?? "Anonymous";
+                     
+                     try {
+                        await FirebaseService.saveChatMessage(
+                          phone: phone,
+                          message: "AI Guidance",
+                          reply: chat.message,
+                        );
+                        if (context.mounted) {
+                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(Lang.t("advice_saved")),
+                              backgroundColor: Colors.blue,
+                           ));
+                        }
+                     } catch (e) {
+                        debugPrint("Manual chat save error: $e");
+                     }
+                  },
                 );
               },
             ),
@@ -214,8 +249,9 @@ class _ChatBubble extends StatelessWidget {
   final String message;
   final bool isUser;
   final VoidCallback onVoice;
+  final VoidCallback? onSave;
 
-  const _ChatBubble({required this.message, required this.isUser, required this.onVoice});
+  const _ChatBubble({required this.message, required this.isUser, required this.onVoice, this.onSave});
 
   @override
   Widget build(BuildContext context) {
@@ -256,20 +292,32 @@ class _ChatBubble extends StatelessWidget {
                     ),
                   ),
             if (!isUser && message.isNotEmpty && message != "Thinking...")
-              Align(
-                alignment: Alignment.bottomRight,
-                child: GestureDetector(
-                  onTap: onVoice,
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50] ,
-                      shape: BoxShape.circle,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (onSave != null)
+                    GestureDetector(
+                      onTap: onSave,
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 8, right: 8),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
+                        child: const Icon(Icons.bookmark_add_outlined, size: 18, color: Colors.blue),
+                      ),
                     ),
-                    child: Icon(Icons.volume_up, size: 18, color: Colors.green[700]),
+                  GestureDetector(
+                    onTap: onVoice,
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50] ,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.volume_up, size: 18, color: Colors.green[700]),
+                    ),
                   ),
-                ),
+                ],
               ),
           ],
         ),

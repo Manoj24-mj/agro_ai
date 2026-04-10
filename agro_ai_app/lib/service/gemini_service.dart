@@ -4,10 +4,10 @@ import 'package:http/http.dart' as http;
 
 class GeminiService {
   // TODO: Replace with your actual Gemini API Key from https://aistudio.google.com/
-  static const String _apiKey = "AIzaSyB_DIdaVU_jJnuafxqS89Pn73WZp-9gCUY";
+  static const String _apiKey = "AIzaSyDm7C-5FaQqkZliUGikBb7lLQ1bA9X7UBA";
   
   static const String _systemPrompt = '''
-    You are "Agro AI Doctor", a highly professional, intelligent, and friendly AI assistant designed to help farmers and agricultural users.
+    You are "Smart Kisan", a highly professional, intelligent, and friendly AI assistant designed to help farmers and agricultural users.
 
     Your personality:
     - Clear, confident, and supportive

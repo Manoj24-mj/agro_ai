@@ -7,6 +7,10 @@ import 'home_screen.dart';
 import 'onboarding_manual_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'country_selection_screen.dart';
+import 'package:agro_ai_app/service/firebase_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:agro_ai_app/localization.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +24,9 @@ enum AuthState { checkPhone, login, signup, forgotPassword, signupOtp, forgotPas
 class _LoginScreenState extends State<LoginScreen> {
   AuthState _currentFlow = AuthState.checkPhone;
   bool _isLoading = false;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  ConfirmationResult? _confirmationResult; // Only for Web Auth Flow
+
 
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -29,7 +36,26 @@ class _LoginScreenState extends State<LoginScreen> {
   String _selectedCountryCode = "+91";
   String _deliveryMethod = "sms";
   String _userNameIfKnown = "";
+  Map<String, dynamic>? _foundUserData;
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Lang().addListener(_onLangChanged);
+  }
+
+  void _onLangChanged() { if (mounted) setState(() {}); }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _passwordController.dispose();
+    _nameController.dispose();
+    _otpController.dispose();
+    Lang().removeListener(_onLangChanged);
+    super.dispose();
+  }
 
   Future<void> _checkOnboardingAndNavigate() async {
     final prefs = await SharedPreferences.getInstance();
@@ -67,6 +93,10 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('userPhone', account.email); // Using email as identifier
         
         _showSnackbar("Logged in as ${account.displayName}", Colors.green);
+        
+        // --- SAVE TO FIREBASE ---
+        await FirebaseService.saveUser(account.email, account.displayName ?? "Google User");
+        
         _checkOnboardingAndNavigate();
       }
     } catch (error) {
@@ -76,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // 1. Check if user exists
+  // 1. Check if user exists in Firestore and Trigger Firebase OTP
   Future<void> _processPhone() async {
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) return;
@@ -90,68 +120,65 @@ class _LoginScreenState extends State<LoginScreen> {
     final fullPhone = "$_selectedCountryCode$phone";
 
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/check-user'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'phone': fullPhone}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['exists'] == true) {
-          setState(() {
-            _userNameIfKnown = data['name'];
-            _currentFlow = AuthState.login;
-          });
-        } else {
-          setState(() => _currentFlow = AuthState.signup);
-        }
+      // Step A: Check if user exists in Firestore instead of Uvicorn
+      final userData = await FirebaseService.checkUser(fullPhone);
+      
+      if (kIsWeb) {
+         // Step B: Firebase Phone Auth for Web
+         _confirmationResult = await _auth.signInWithPhoneNumber(fullPhone);
+                  if (userData != null) {
+            setState(() {
+              _foundUserData = userData;
+              _userNameIfKnown = userData['name'] ?? "User";
+              _currentFlow = AuthState.login; // Proceed with password
+            });
+          } else {
+           setState(() => _currentFlow = AuthState.signup);
+         }
       } else {
-        _showSnackbar("Error: Server returned ${response.statusCode}", Colors.red);
+         // Step B: Mobile Auth - Requires verifyPhoneNumber
+         // [Placeholder for Mobile implementation if needed]
+         _showSnackbar("This version is optimized for Web.", Colors.orange);
       }
     } catch (e) {
-      _showSnackbar("Network error: $e", Colors.red);
+      _showSnackbar("Firebase Auth error: $e", Colors.red);
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  // 2. Existing User Password Login
+  // 2. Existing User Login - Now using OTP instead of custom password
+  // (Or you can keep custom password but use Firebase for persistence)
   Future<void> _login() async {
-    final password = _passwordController.text.trim();
-    if (password.isEmpty) return;
+    final enteredPassword = _passwordController.text.trim();
+    final storedPassword = _foundUserData?['password'] ?? "";
 
-    setState(() => _isLoading = true);
-    final fullPhone = "$_selectedCountryCode${_phoneController.text.trim()}";
+    if (enteredPassword.isEmpty) {
+      _showSnackbar("Please enter your password", Colors.red);
+      return;
+    }
 
-    try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'phone': fullPhone, 'password': password}),
-      );
-
-      if (response.statusCode == 200) {
-        if (mounted) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userName', _userNameIfKnown);
-          await prefs.setString('userPhone', fullPhone);
-          _checkOnboardingAndNavigate();
-        }
-      } else {
-        _showSnackbar("Incorrect Password!", Colors.red);
+    if (enteredPassword == storedPassword) {
+      setState(() => _isLoading = true);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userName', _userNameIfKnown);
+        await prefs.setString('userPhone', "$_selectedCountryCode${_phoneController.text.trim()}");
+        
+        _showSnackbar("Login Successful!", Colors.green);
+        _checkOnboardingAndNavigate();
+      } finally {
+        setState(() => _isLoading = false);
       }
-    } catch (e) {
-      _showSnackbar("Network error", Colors.red);
-    } finally {
-      setState(() => _isLoading = false);
+    } else {
+      _showSnackbar("Incorrect password. Please try again or use 'Forgot Password'.", Colors.red);
     }
   }
 
-  // 3. Request OTP
+  // 3. Request OTP - Re-implemented for Firebase
   Future<void> _requestOtp(AuthState nextState) async {
     final name = _nameController.text.trim();
-    if (nextState == AuthState.signupOtp && name.isEmpty) {
+    if (nextState == AuthState.signupOtp && _currentFlow == AuthState.signup && name.isEmpty) {
       _showSnackbar("Please enter a name", Colors.red);
       return;
     }
@@ -160,68 +187,55 @@ class _LoginScreenState extends State<LoginScreen> {
     final fullPhone = "$_selectedCountryCode${_phoneController.text.trim()}";
 
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/send-otp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'phone': fullPhone, 'method': _deliveryMethod}),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() => _currentFlow = nextState);
-        _showSnackbar("OTP Sent to Your Phone", Colors.green);
+      // In Firebase Web, we already got confirmationResult in _processPhone
+      // If we need to re-trigger, we can.
+      if (_confirmationResult != null) {
+         setState(() => _currentFlow = nextState);
+         _showSnackbar("Code sent via Firebase", Colors.green);
       } else {
-         _showSnackbar("Failed to send OTP", Colors.red);
+         _confirmationResult = await _auth.signInWithPhoneNumber(fullPhone);
+         setState(() => _currentFlow = nextState);
       }
     } catch (e) {
-      _showSnackbar("Network error", Colors.red);
+      _showSnackbar("Failed to send OTP via Firebase: $e", Colors.red);
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  // 4. Verify OTP and Write Details
+  // 4. Verify OTP using Firebase Result
   Future<void> _verifyOtpAndSave() async {
     final otp = _otpController.text.trim();
-    if (otp.isEmpty) return;
+    if (otp.isEmpty || _confirmationResult == null) return;
     
     setState(() => _isLoading = true);
     final fullPhone = "$_selectedCountryCode${_phoneController.text.trim()}";
     
-    String endpoint = _currentFlow == AuthState.signupOtp ? '/register' : '/reset-password';
-    
-    Map<String, dynamic> body = {
-      'phone': fullPhone,
-      'otp': otp,
-    };
-
-    if (_currentFlow == AuthState.signupOtp) {
-      body['name'] = _nameController.text;
-      body['password'] = _passwordController.text;
-    } else {
-      // Forgot Password route
-      body['new_name'] = _nameController.text;
-      body['new_password'] = _passwordController.text;
-    }
-
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000$endpoint'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      final UserCredential userCredential = await _confirmationResult!.confirm(otp);
+      
+      if (userCredential.user != null) {
+         if (mounted) {
+            final prefs = await SharedPreferences.getInstance();
+            final nameToSave = _currentFlow == AuthState.signupOtp 
+                ? _nameController.text 
+                : _userNameIfKnown;
+                
+            await prefs.setString('userName', nameToSave);
+            await prefs.setString('userPhone', fullPhone);
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-           final prefs = await SharedPreferences.getInstance();
-           await prefs.setString('userName', _nameController.text);
-           await prefs.setString('userPhone', fullPhone);
-           _checkOnboardingAndNavigate();
-        }
-      } else {
-        _showSnackbar("Invalid OTP!", Colors.red);
+             // --- SAVE TO FIRESTORE ---
+             await FirebaseService.saveUser(
+               fullPhone, 
+               nameToSave, 
+               password: _passwordController.text.trim()
+             );
+
+            _checkOnboardingAndNavigate();
+         }
       }
     } catch (e) {
-      _showSnackbar("Network error", Colors.red);
+      _showSnackbar("Invalid OTP verification: $e", Colors.red);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -248,10 +262,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.eco, size: 80, color: Colors.green.shade600),
+                  Image.asset('assets/images/logo.png', height: 180),
                   const SizedBox(height: 16),
                   Text(
-                    "Agro AI Doctor",
+                    Lang.t("title"),
                     textAlign: TextAlign.center,
                     style: TextStyle(fontFamily: 'Roboto', fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green.shade800),
                   ),
@@ -286,7 +300,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text("Enter Phone Number to Continue:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(Lang.t("enter_phone"), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
@@ -319,8 +333,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                   ],
-                  decoration: const InputDecoration(
-                    hintText: "Phone Number",
+                  decoration: InputDecoration(
+                    hintText: Lang.t("phone_number_hint"),
                     border: InputBorder.none,
                   ),
                 ),
@@ -332,24 +346,24 @@ class _LoginScreenState extends State<LoginScreen> {
         ElevatedButton(
           onPressed: _isLoading ? null : _processPhone,
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, foregroundColor: Colors.white, padding: const EdgeInsets.all(16)),
-          child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Next"),
+          child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(Lang.t("next")),
         ),
         const SizedBox(height: 24),
-        const Row(
+        Row(
           children: [
-            Expanded(child: Divider()),
+            const Expanded(child: Divider()),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text("OR", style: TextStyle(color: Colors.grey)),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(Lang.t("or"), style: const TextStyle(color: Colors.grey)),
             ),
-            Expanded(child: Divider()),
+            const Expanded(child: Divider()),
           ],
         ),
         const SizedBox(height: 24),
         OutlinedButton.icon(
           onPressed: _isLoading ? null : _handleGoogleSignIn,
           icon: Icon(Icons.email_outlined, color: Colors.red.shade500),
-          label: const Text("Login with Gmail", style: TextStyle(color: Colors.black87)),
+          label: Text(Lang.t("login_gmail"), style: const TextStyle(color: Colors.black87)),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.all(16),
             side: BorderSide(color: Colors.grey.shade400),
@@ -364,7 +378,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text("Welcome back, $_userNameIfKnown!", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text("${Lang.t("welcome_back")} ${_userNameIfKnown}!", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Text("$_selectedCountryCode ${_phoneController.text}", style: const TextStyle(color: Colors.grey)),
         const SizedBox(height: 24),
@@ -374,7 +388,7 @@ class _LoginScreenState extends State<LoginScreen> {
           obscureText: _obscurePassword,
           maxLength: 8,
           decoration: InputDecoration(
-            labelText: "Password",
+            labelText: Lang.t("password"),
             prefixIcon: const Icon(Icons.lock),
             suffixIcon: IconButton(
               icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
@@ -396,19 +410,19 @@ class _LoginScreenState extends State<LoginScreen> {
               _passwordController.clear();
               setState(() => _currentFlow = AuthState.forgotPassword);
             },
-            child: Text("Forgot Password?", style: TextStyle(color: Colors.green.shade700)),
+            child: Text(Lang.t("forgot_pwd"), style: TextStyle(color: Colors.green.shade700)),
           ),
         ),
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: _isLoading ? null : _login,
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, foregroundColor: Colors.white, padding: const EdgeInsets.all(16)),
-          child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Login"),
+          child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(Lang.t("login_btn")),
         ),
         const SizedBox(height: 16),
          TextButton(
           onPressed: () => setState(() => _currentFlow = AuthState.checkPhone),
-           child: const Text("Use a different number"),
+           child: Text(Lang.t("different_number")),
          )
       ],
     );
@@ -419,14 +433,14 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(isForgot ? "Reset Details & Password" : "Looks like you are new! Register Profile", 
+        Text(isForgot ? Lang.t("reset_details") : Lang.t("register_profile"), 
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 24),
         
         TextField(
           controller: _nameController,
           decoration: InputDecoration(
-            labelText: "Full Name",
+            labelText: Lang.t("full_name"),
             prefixIcon: const Icon(Icons.person),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -437,7 +451,7 @@ class _LoginScreenState extends State<LoginScreen> {
           obscureText: _obscurePassword,
           maxLength: 8,
           decoration: InputDecoration(
-            labelText: isForgot ? "New Password" : "Create Password",
+            labelText: isForgot ? Lang.t("new_password") : Lang.t("create_password"),
             prefixIcon: const Icon(Icons.lock),
             suffixIcon: IconButton(
               icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
@@ -451,7 +465,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         const SizedBox(height: 24),
-         const Text("Receive OTP via:", style: TextStyle(fontWeight: FontWeight.bold)),
+         Text(Lang.t("receive_otp_via"), style: const TextStyle(fontWeight: FontWeight.bold)),
         Row(
           children: [
             Expanded(child: RadioListTile<String>(title: const Text("SMS"), value: "sms", groupValue: _deliveryMethod, onChanged: (v) => setState(() => _deliveryMethod = v!), activeColor: Colors.green)),

@@ -2,7 +2,7 @@ import requests
 import json
 
 # Set your API key
-API_KEY = "AIzaSyB_DIdaVU_jJnuafxqS89Pn73WZp-9gCUY"
+API_KEY = "AIzaSyDm7C-5FaQqkZliUGikBb7lLQ1bA9X7UBA"
 
 def list_models():
     print("--- Listing Available Models (v1) ---")

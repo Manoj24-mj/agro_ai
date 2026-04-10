@@ -13,6 +13,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:agro_ai_app/service/database_service.dart';
 import 'package:agro_ai_app/service/data_service.dart';
+import 'package:agro_ai_app/service/firebase_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DetectorScreen extends StatefulWidget {
   const DetectorScreen({super.key});
@@ -42,14 +44,18 @@ class _DetectorScreenState extends State<DetectorScreen> {
   void initState() {
     super.initState();
     _messages.add(DetectorMessage(
-      message: "Hello! I am your Plant Disease Detector. Please upload a photo of your plant, or describe the symptoms in text or voice, and I will help you diagnose the issue.",
+      message: Lang.t("detector_welcome"),
       isUser: false,
     ));
+    Lang().addListener(_onLangChanged);
   }
+
+  void _onLangChanged() { if (mounted) setState(() {}); }
 
   @override
   void dispose() {
     _cameraController?.dispose();
+    Lang().removeListener(_onLangChanged);
     super.dispose();
   }
 
@@ -219,6 +225,8 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
         result, 
         severity
       );
+      
+      // (Automatic Cloud upload removed as per user request. Use manual 'Save' button instead.)
 
       setState(() {
         _messages.removeLast();
@@ -240,7 +248,7 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
   void _handleFeedback(DetectorMessage msg, bool isHelpful) {
     if (isHelpful) {
       AgroDataService.submitFeedback("AI Detector", msg.message.hashCode.toString(), "Helpful");
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Thanks! Glad we could help. 🌾")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t("helpful_msg_thanks"))));
     } else {
       _showDislikeOptions(msg);
     }
@@ -255,11 +263,11 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("How can we improve?", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(Lang.t("improve_msg"), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             ListTile(
               leading: const Icon(Icons.refresh, color: Colors.blue),
-              title: const Text("Perform a Deep Re-Analysis"),
+              title: Text(Lang.t("deep_analysis")),
               subtitle: const Text("Run AI with higher sensitivity settings."),
               onTap: () {
                 Navigator.pop(context);
@@ -268,11 +276,11 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
             ),
             ListTile(
               leading: const Icon(Icons.report_problem, color: Colors.orange),
-              title: const Text("Result is Inaccurate"),
+              title: Text(Lang.t("inaccurate_res")),
               onTap: () {
                 AgroDataService.submitFeedback("AI Detector", msg.message.hashCode.toString(), "Inaccurate");
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Feedback logged for AI improvement. 🤖")));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t("feedback_msg"))));
               },
             ),
           ],
@@ -411,24 +419,52 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
                   onHelpful: () => _handleFeedback(msg, true),
                   onDislike: () => _handleFeedback(msg, false),
                   onSave: msg.isUser || msg.message == Lang.t("thinking") || msg.message.contains("🔄") ? null : () async {
+                     final prefs = await SharedPreferences.getInstance();
+                     final phone = prefs.getString('userPhone') ?? "Anonymous";
+
+                     // 1. Save Locally
                      await DatabaseService.saveMessage("AI Detector", msg.message, false);
+
+                     // 2. Save to Cloud (Manual Choice)
+                     try {
+                        String title = "Detector Scan";
+                        String severity = "LOW";
+                        final diagMatch = RegExp(r'\*\*Diagnosis:\*\*\s*(.+)').firstMatch(msg.message);
+                        if (diagMatch != null) {
+                           title = diagMatch.group(1)!;
+                           if (title.length > 30) title = title.substring(0, 30) + "...";
+                        }
+                        final sevMatch = RegExp(r'\[\s*SEVERITY:\s*(HIGH|MEDIUM|LOW)\s*\]', caseSensitive: false).firstMatch(msg.message);
+                        if (sevMatch != null) severity = sevMatch.group(1)!.toUpperCase();
+
+                        await FirebaseService.saveScanResult(
+                          phone: phone,
+                          title: title,
+                          query: msg.imagePath != null ? "Image Analysis" : "Text Query",
+                          result: msg.message,
+                          severity: severity,
+                        );
+                     } catch (e) {
+                        debugPrint("Firebase manual save error: $e");
+                     }
+
                      if (context.mounted) {
                        showDialog(
                          context: context,
                          builder: (context) => AlertDialog(
                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                            title: Row(
-                             children: const [
-                               Icon(Icons.check_circle, color: Colors.green, size: 28),
+                             children: [
+                               Icon(Icons.cloud_done, color: Colors.blue, size: 28),
                                SizedBox(width: 10),
-                               Text("Output Saved!", style: TextStyle(fontWeight: FontWeight.bold)),
+                               Text(Lang.t("saved_cloud"), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                              ],
                            ),
-                           content: const Text("The diagnosis result has been securely saved locally. You can access it anytime from the 'Saved' section on the Home Screen.", style: TextStyle(fontSize: 16)),
+                           content: Text(Lang.t("saved_cloud_body"), style: const TextStyle(fontSize: 16)),
                            actions: [
                              TextButton(
                                onPressed: () => Navigator.pop(context),
-                               child: const Text("Got it!", style: TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+                               child: Text(Lang.t("awesome"), style: const TextStyle(color: Colors.blue, fontSize: 16, fontWeight: FontWeight.bold)),
                              )
                            ],
                          ),
@@ -571,7 +607,7 @@ class _DetectorBubble extends StatelessWidget {
                   children: [
                     const Icon(Icons.science, color: Colors.white, size: 18),
                     const SizedBox(width: 8),
-                    Text("BOTANICAL LAB REPORT", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.2, fontSize: 13)),
+                    Text(Lang.t("bot_report"), style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.2, fontSize: 13)),
                   ],
                 ),
               ),
@@ -592,11 +628,11 @@ class _DetectorBubble extends StatelessWidget {
                            spacing: 12,
                            runSpacing: 20,
                            children: [
-                             _buildDial("CONFIDENCE", accuracy, "%", accuracy > 80 ? Colors.green : (accuracy > 50 ? Colors.orange : Colors.red)),
-                             _buildDial("THREAT LVL", severity == 'HIGH' ? 85 : (severity == 'MEDIUM' ? 55 : 25), "%", severity == 'HIGH' ? Colors.red : (severity == 'MEDIUM' ? Colors.orange : Colors.green)),
-                             if (water != null) _buildDial("WATER NEED", water, "%", Colors.cyan),
-                             if (temp != null) _buildDial("TEMP", temp, "°C", Colors.orange[800]!),
-                             if (humidity != null) _buildDial("HUMIDITY", humidity, "%", Colors.teal),
+                              _buildDial(Lang.t("confidence"), accuracy!, "%", accuracy > 80 ? Colors.green : (accuracy > 50 ? Colors.orange : Colors.red)),
+                              _buildDial(Lang.t("threat_lvl"), severity == 'HIGH' ? 85 : (severity == 'MEDIUM' ? 55 : 25), "%", severity == 'HIGH' ? Colors.red : (severity == 'MEDIUM' ? Colors.orange : Colors.green)),
+                              if (water != null) _buildDial(Lang.t("water_need"), water, "%", Colors.cyan),
+                              if (temp != null) _buildDial(Lang.t("temp_label_short"), temp, "°C", Colors.orange[800]!),
+                              if (humidity != null) _buildDial(Lang.t("hum_label_short"), humidity, "%", Colors.teal),
                            ]
                          )
                       ),
@@ -731,7 +767,7 @@ class _DetectorInput extends StatelessWidget {
             child: TextField(
               controller: controller,
               decoration: InputDecoration(
-                hintText: "Describe problem or scan...",
+                hintText: Lang.t("detector_hint"),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
                 filled: true,
                 fillColor: Colors.grey[150],

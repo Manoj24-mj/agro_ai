@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:agro_ai_app/localization.dart';
+import 'package:agro_ai_app/widgets/searchable_picker.dart';
 
 class CropPriceScreen extends StatefulWidget {
   const CropPriceScreen({super.key});
@@ -12,6 +13,13 @@ class CropPriceScreen extends StatefulWidget {
 class _CropPriceScreenState extends State<CropPriceScreen> {
   String? _selectedCrop;
   String _selectedDuration = "3w"; // default timeframe
+
+  @override
+  void initState() {
+    super.initState();
+    // Sort crop data alphabetically
+    _cropData.sort((a, b) => (a["name"] as String).compareTo(b["name"] as String));
+  }
 
   final List<Map<String, dynamic>> _cropData = [
     // GRAINS
@@ -110,13 +118,13 @@ class _CropPriceScreenState extends State<CropPriceScreen> {
     if (selectedData != null) {
       if (_selectedDuration == "1d") {
         pastPrice = selectedData["history"]["1d"];
-        durationLabel = "1 Day";
+        durationLabel = Lang.t("1 Day");
       } else if (_selectedDuration == "3d") {
         pastPrice = selectedData["history"]["3d"];
-        durationLabel = "3 Days";
+        durationLabel = Lang.t("3 Days");
       } else {
         pastPrice = selectedData["history"]["3w"];
-        durationLabel = "3 Weeks";
+        durationLabel = Lang.t("3 Weeks");
       }
     }
 
@@ -153,34 +161,16 @@ class _CropPriceScreenState extends State<CropPriceScreen> {
               const SizedBox(height: 30),
               
               // Crop Selector
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))
-                  ],
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedCrop,
-                    hint: Text(Lang.t("choose_crop")),
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF2E7D32)),
-                    items: _cropData.map((crop) {
-                      return DropdownMenuItem<String>(
-                        value: crop["name"],
-                        child: Text(crop["name"], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedCrop = val;
-                      });
-                    },
-                  ),
-                ),
+              _buildSearchableSelector(
+                label: Lang.t("choose_crop"),
+                value: _selectedCrop != null ? Lang.t(_selectedCrop!) : Lang.t("choose_crop"),
+                icon: Icons.grass,
+                items: _cropData.map((e) => e["name"] as String).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _selectedCrop = val;
+                  });
+                },
               ),
               
               const SizedBox(height: 40),
@@ -209,10 +199,10 @@ class _CropPriceScreenState extends State<CropPriceScreen> {
                             if (index == 2) _selectedDuration = "3w";
                           });
                         },
-                        children: const [
-                          Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("1D")),
-                          Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("3D")),
-                          Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("3W")),
+                        children: [
+                          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(Lang.t("1 Day"))),
+                          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(Lang.t("3 Days"))),
+                          Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(Lang.t("3 Weeks"))),
                         ],
                       ),
                     ),
@@ -234,12 +224,12 @@ class _CropPriceScreenState extends State<CropPriceScreen> {
                   child: Column(
                     children: [
                       Text(
-                        selectedData["name"],
+                        Lang.t(selectedData["name"]),
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        "₹${selectedData["price"]}/${selectedData["unit"]}",
+                        "₹${selectedData["price"]}/${Lang.t(selectedData["unit"])}",
                         style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.black87),
                       ),
                       const SizedBox(height: 10),
@@ -291,13 +281,13 @@ class _CropPriceScreenState extends State<CropPriceScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Historical Comparison", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(Lang.t("hist_comparison"), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 16),
-                      _buildHistoryRow("1 Day Ago", selectedData["history"]["1d"], selectedData["price"]),
+                      _buildHistoryRow(Lang.t("1_day_ago"), selectedData["history"]["1d"], selectedData["price"]),
                       const Divider(),
-                      _buildHistoryRow("3 Days Ago", selectedData["history"]["3d"], selectedData["price"]),
+                      _buildHistoryRow(Lang.t("3_days_ago"), selectedData["history"]["3d"], selectedData["price"]),
                       const Divider(),
-                      _buildHistoryRow("3 Weeks Ago", selectedData["history"]["3w"], selectedData["price"]),
+                      _buildHistoryRow(Lang.t("3_weeks_ago"), selectedData["history"]["3w"], selectedData["price"]),
                     ],
                   ),
                 ),
@@ -348,6 +338,52 @@ class _CropPriceScreenState extends State<CropPriceScreen> {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchableSelector({
+    required String label,
+    required String value,
+    required IconData icon,
+    required List<String> items,
+    required ValueChanged<String> onChanged,
+  }) {
+    return InkWell(
+      onTap: () {
+        SearchablePicker.show(
+          context,
+          title: label,
+          items: items,
+          selectedItem: value,
+          onSelected: onChanged,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF2E7D32)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Selected Crop", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.grey),
+          ],
         ),
       ),
     );

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WeatherService {
   // Open-Meteo is a professional-grade API that requires NO API KEY
@@ -49,8 +51,8 @@ class WeatherService {
         ).catchError((_) => Geolocator.getLastKnownPosition());
         
         if (pos != null && pos.latitude != 0) {
-          String city = await _reverseGeocode(pos.latitude, pos.longitude);
-          final data = await fetchFullWeatherData(pos.latitude, pos.longitude, city);
+          final loc = await _reverseGeocode(pos.latitude, pos.longitude);
+          final data = await fetchFullWeatherData(pos.latitude, pos.longitude, loc["city"]!, stateName: loc["state"]);
           if (data["error"] == null) {
             _updateAutoCache(data);
             return data;
@@ -65,19 +67,20 @@ class WeatherService {
     }
   }
 
-  static Future<String> _reverseGeocode(double lat, double lon) async {
+  static Future<Map<String, String>> _reverseGeocode(double lat, double lon) async {
     try {
       final res = await http.get(Uri.parse(
         "https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lon&format=json&zoom=10"
       )).timeout(const Duration(seconds: 3));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        return data["address"]?["city"] ?? 
-               data["address"]?["state_district"] ?? 
-               data["address"]?["state"] ?? "Your Farm";
+        final addr = data["address"] ?? {};
+        String city = addr["city"] ?? addr["town"] ?? addr["village"] ?? addr["state_district"] ?? "Your Farm";
+        String state = addr["state"] ?? "";
+        return {"city": city, "state": state};
       }
     } catch (_) {}
-    return "Your Farm";
+    return {"city": "Your Farm", "state": ""};
   }
 
   static Future<Map<String, dynamic>> _getWeatherViaIP() async {
@@ -89,7 +92,8 @@ class WeatherService {
         final weatherData = await fetchFullWeatherData(
           double.parse(data["latitude"].toString()), 
           double.parse(data["longitude"].toString()), 
-          data["city"] ?? data["region"] ?? "Current City"
+          data["city"] ?? "Current City",
+          stateName: data["region"]
         );
         _updateAutoCache(weatherData);
         return weatherData;
@@ -122,7 +126,7 @@ class WeatherService {
             ? results[0] 
             : results.firstWhere((e) => e["country_code"] == countryCode, orElse: () => results[0]);
             
-        return fetchFullWeatherData(filtered["latitude"], filtered["longitude"], filtered["name"]);
+        return fetchFullWeatherData(filtered["latitude"], filtered["longitude"], filtered["name"], stateName: filtered["admin1"]);
       }
       return {"error": "Geocoding service unavailable."};
     } catch (e) {
@@ -179,7 +183,7 @@ class WeatherService {
   static final Map<String, DateTime> _cacheTime = {};
   static const Duration _cacheDuration = Duration(minutes: 30);
 
-  static Future<Map<String, dynamic>> fetchFullWeatherData(double lat, double lon, String cityName) async {
+  static Future<Map<String, dynamic>> fetchFullWeatherData(double lat, double lon, String cityName, {String? stateName}) async {
     final cacheKey = "${lat.toStringAsFixed(2)}_${lon.toStringAsFixed(2)}";
     
     // Check Cache
@@ -219,6 +223,7 @@ class WeatherService {
         
         final result = {
           "name": cityName,
+          "state": stateName,
           "main": {
             "temp": weatherData["temperature_2m"],
             "humidity": weatherData["relative_humidity_2m"],
@@ -233,6 +238,9 @@ class WeatherService {
         // Cache persistent data
         _cache[cacheKey] = result;
         _cacheTime[cacheKey] = DateTime.now();
+
+        // 4. Log to Firestore for Analytics
+        _logWeatherToFirestore(lat, lon, cityName, result);
 
         return result;
       }
@@ -261,9 +269,30 @@ class WeatherService {
   }
 
   static String _getWeatherDesc(double temp) {
-    if (temp > 30) return "Hot & Sunny";
-    if (temp > 20) return "Clear & Pleasant";
-    if (temp > 10) return "Cool";
-    return "Cold";
+    if (temp > 30) return "weather_hot";
+    if (temp > 20) return "weather_clear";
+    if (temp > 10) return "weather_cool";
+    return "weather_cold";
+  }
+
+  static Future<void> _logWeatherToFirestore(double lat, double lon, String city, Map<String, dynamic> data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final phone = prefs.getString('userPhone') ?? "unknown";
+      
+      await FirebaseFirestore.instance.collection("weather_history").add({
+        "city": city,
+        "lat": lat,
+        "lon": lon,
+        "temp": data["main"]["temp"],
+        "humidity": data["main"]["humidity"],
+        "aqi": data["aqi"],
+        "uvi": data["uvi"],
+        "phone": phone,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print("Error logging weather: $e");
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:agro_ai_app/localization.dart';
 
 class CommunityScreen extends StatelessWidget {
   const CommunityScreen({super.key});
@@ -8,6 +9,11 @@ class CommunityScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: Text(Lang.t("comm_title")),
+        backgroundColor: Colors.green[700],
+        foregroundColor: Colors.white,
+      ),
       body: Stack(
         children: [
           // Background floating particle effect (simulated with gradient)
@@ -103,9 +109,9 @@ class CommunityScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  TextButton.icon(onPressed: (){}, icon: const Icon(Icons.thumb_up_alt_outlined, color: Colors.grey), label: const Text("Like", style: TextStyle(color: Colors.grey))),
-                  TextButton.icon(onPressed: (){}, icon: const Icon(Icons.comment_outlined, color: Colors.grey), label: const Text("Comment", style: TextStyle(color: Colors.grey))),
-                  TextButton.icon(onPressed: (){}, icon: const Icon(Icons.share_outlined, color: Colors.grey), label: const Text("Share", style: TextStyle(color: Colors.grey))),
+                  TextButton.icon(onPressed: (){}, icon: const Icon(Icons.thumb_up_alt_outlined, color: Colors.grey), label: Text(Lang.t("like"), style: const TextStyle(color: Colors.grey))),
+                  TextButton.icon(onPressed: (){}, icon: const Icon(Icons.comment_outlined, color: Colors.grey), label: Text(Lang.t("comment"), style: const TextStyle(color: Colors.grey))),
+                  TextButton.icon(onPressed: (){}, icon: const Icon(Icons.share_outlined, color: Colors.grey), label: Text(Lang.t("share"), style: const TextStyle(color: Colors.grey))),
                 ],
               )
             ],

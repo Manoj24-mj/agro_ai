@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "58872274051",
+    "project_id": "agroai-1215d",
+    "storage_bucket": "agroai-1215d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:58872274051:android:27226b75dc98209f764fb6",
+        "android_client_info": {
+          "package_name": "com.example.agro_ai_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwrpHU1UYTUL8UJyiPkE-FjcSXiZNCPwg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MarketService {
-  static const String _productsKey = "market_products_db";
-  static const String _cartKey = "market_cart_db";
+  static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static final CollectionReference _productsRef = _db.collection("products");
 
-  // Realistic fallback starting mock data resembling a populated database
+  /// Initial seed data if Firestore is empty
   static final List<Map<String, dynamic>> _initialMockProducts = [
     {
       "id": "1", 
@@ -17,7 +18,8 @@ class MarketService {
       "seller": "Green Farms Ltd", 
       "isVerified": true, 
       "demand": "HIGH", 
-      "cat": "Seeds"
+      "cat": "Seeds",
+      "timestamp": FieldValue.serverTimestamp()
     },
     {
       "id": "2", 
@@ -29,7 +31,8 @@ class MarketService {
       "seller": "AgroTech Supplies", 
       "isVerified": false, 
       "demand": "NORMAL", 
-      "cat": "Fertilizers"
+      "cat": "Fertilizers",
+      "timestamp": FieldValue.serverTimestamp()
     },
     {
       "id": "3", 
@@ -41,61 +44,42 @@ class MarketService {
       "seller": "Ravi Tools & Spares", 
       "isVerified": true, 
       "demand": "TRENDING", 
-      "cat": "Tools"
-    },
-    {
-      "id": "4", 
-      "name": "Premium Pesticide (Eco-Friendly)", 
-      "price": "₹450", 
-      "distance": "1.2 km", 
-      "rating": 4.2, 
-      "reviews": 15, 
-      "seller": "Local Chemical Depot", 
-      "isVerified": false, 
-      "demand": "LOW", 
-      "cat": "Pesticides"
-    },
-     {
-      "id": "5", 
-      "name": "Rice Paddy Harvest Bundle", 
-      "price": "₹6500", 
-      "distance": "3.5 km", 
-      "rating": 4.7, 
-      "reviews": 88, 
-      "seller": "Green Farms Ltd", 
-      "isVerified": true, 
-      "demand": "HIGH", 
-      "cat": "Crops"
+      "cat": "Tools",
+      "timestamp": FieldValue.serverTimestamp()
     },
   ];
 
-  /// Fetches all active products from local persistent storage (Mimics Firestore fetch)
-  static Future<List<Map<String, dynamic>>> getProducts() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString(_productsKey);
-      if (data == null) {
-        // Initialize DB on first run
-        await prefs.setString(_productsKey, jsonEncode(_initialMockProducts));
-        return _initialMockProducts;
+  /// One-time seed method to populate Firestore for the first time
+  static Future<void> seedDatabase() async {
+    final snapshot = await _productsRef.limit(1).get();
+    if (snapshot.docs.isEmpty) {
+      for (var product in _initialMockProducts) {
+        await _productsRef.add(product);
       }
-      List<dynamic> list = jsonDecode(data);
-      return list.map((e) => Map<String, dynamic>.from(e)).toList();
-    } catch (e) {
-      return _initialMockProducts;
+      print("Firestore Market Seeded successfully.");
     }
   }
 
-  /// Adds a newly created product globally to the database
-  static Future<void> addProduct(Map<String, dynamic> product) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<Map<String, dynamic>> products = await getProducts();
-    // Insert new products at the top of the feed mimicking newest-first DB sorting
-    products.insert(0, product); 
-    await prefs.setString(_productsKey, jsonEncode(products));
+  /// Fetches all active products from Firestore (Real-time compatible)
+  static Stream<List<Map<String, dynamic>>> getProductsStream() {
+    return _productsRef.orderBy("timestamp", descending: true).snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id; // Map document ID
+        return data;
+      }).toList();
+    });
   }
 
-  /// Fetches current active user's localized cart 
+  /// Adds a newly created product globally to Firestore
+  static Future<void> addProduct(Map<String, dynamic> product) async {
+    product['timestamp'] = FieldValue.serverTimestamp();
+    await _productsRef.add(product);
+  }
+
+  // --- CART MANAGEMENT (Local Storage) ---
+  static const String _cartKey = "market_cart_db";
+
   static Future<List<Map<String, dynamic>>> getCart() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -108,15 +92,13 @@ class MarketService {
     }
   }
 
-  /// Pushes an item to the persistent cart state
   static Future<void> addToCart(Map<String, dynamic> product) async {
     final prefs = await SharedPreferences.getInstance();
     List<Map<String, dynamic>> cart = await getCart();
     cart.add(product);
     await prefs.setString(_cartKey, jsonEncode(cart));
   }
-  
-  /// Clears cart upon successful checkout payment 
+
   static Future<void> clearCart() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_cartKey);

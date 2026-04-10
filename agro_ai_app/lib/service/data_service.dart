@@ -387,6 +387,116 @@ class AgroDataService {
       "regions": ["Rajasthan", "Gujarat", "Tamil Nadu", "Maharashtra"],
       "pests_diseases": ["Mealy Bugs", "Leaf Spot", "Root Rot"],
       "tips": "Harvest only the outermost leaves for continuous production."
+    },
+    {
+      "id": "rice_01",
+      "name": "Rice (Paddy)",
+      "category": "Cereals",
+      "scientific_name": "Oryza sativa",
+      "image": "assets/images/rice.png",
+      "growing_conditions": {
+        "temperature": "20-35°C",
+        "sunlight": "Full Sun",
+        "rainfall": "1500-2500 mm/year",
+        "humidity": "High",
+        "watering": "Very High (Waterlogged)"
+      },
+      "soil": {"type": "Clayey / Clayey Loam", "ph": "5.0 - 6.5"},
+      "spacing": {"row_to_row": "20 cm", "plant_to_plant": "15 cm", "note": "Maintain 2-5cm standing water level."},
+      "fertilizer": {"N": "40", "P": "20", "K": "20", "unit": "kg/acre"},
+      "companions": {"good": ["Soybean", "Legumes"], "bad": ["None"], "explanation": "Legumes fix nitrogen in paddy soil during rotation."},
+      "cultivation": {"life_cycle": "Annual", "method": "Transplanting", "labour": "Very High", "season": "Kharif"},
+      "regions": ["West Bengal", "UP", "Punjab", "Andhra Pradesh", "Tamil Nadu"],
+      "pests_diseases": ["Rice Blast", "Stem Borer", "Leaf Folder"],
+      "tips": "Integrated pest management (IPM) is crucial for high yields."
+    },
+    {
+      "id": "cotton_01",
+      "name": "Cotton",
+      "category": "Cash Crops",
+      "scientific_name": "Gossypium hirsutum",
+      "image": "assets/images/cotton.png",
+      "growing_conditions": {
+        "temperature": "21-30°C",
+        "sunlight": "Full Sun",
+        "rainfall": "500-1100 mm/year",
+        "humidity": "Moderate",
+        "watering": "Moderate"
+      },
+      "soil": {"type": "Black Soil (Regur)", "ph": "5.5 - 8.5"},
+      "spacing": {"row_to_row": "90 cm", "plant_to_plant": "45-60 cm", "note": "High-density planting (HDPS) is gaining popularity."},
+      "fertilizer": {"N": "40", "P": "20", "K": "20", "unit": "kg/acre"},
+      "companions": {"good": ["Onion", "Garlic", "Legumes"], "bad": ["None"], "explanation": "Onions help deter bollworms."},
+      "cultivation": {"life_cycle": "Annual", "method": "Direct Seeding", "labour": "High", "season": "Kharif"},
+      "regions": ["Gujarat", "Maharashtra", "Telangana", "Karnataka"],
+      "pests_diseases": ["Pink Bollworm", "Whitefly", "Aphids"],
+      "tips": "Pheromone traps are essential for monitoring bollworm levels."
+    },
+    {
+      "id": "turmeric_01",
+      "name": "Turmeric",
+      "category": "Spices & Condiments",
+      "scientific_name": "Curcuma longa",
+      "image": "assets/images/turmeric.png",
+      "growing_conditions": {
+        "temperature": "20-30°C",
+        "sunlight": "Partial Shade",
+        "rainfall": "1500-3000 mm/year",
+        "humidity": "High",
+        "watering": "High"
+      },
+      "soil": {"type": "Well-drained Sandy Loam", "ph": "4.5 - 7.5"},
+      "spacing": {"row_to_row": "45 cm", "plant_to_plant": "15 cm", "note": "Raised beds are preferred for better drainage."},
+      "fertilizer": {"N": "60", "P": "50", "K": "120", "unit": "kg/acre"},
+      "companions": {"good": ["Ginger", "Chilli"], "bad": ["None"], "explanation": "Grows well in partial shade conditions."},
+      "cultivation": {"life_cycle": "Perennial (Annual Cultivation)", "method": "Rhizome Planting", "labour": "High", "season": "Kharif"},
+      "regions": ["Telangana", "Maharashtra", "Tamil Nadu", "Karnataka"],
+      "pests_diseases": ["Rhizome Rot", "Leaf Spot", "Shoot Borer"],
+      "tips": "Use high-quality mother rhizomes for planting."
+    },
+    {
+      "id": "marigold_01",
+      "name": "Marigold",
+      "category": "Floriculture Crops",
+      "scientific_name": "Tagetes erecta",
+      "image": "assets/images/marigold.png",
+      "growing_conditions": {
+        "temperature": "18-25°C",
+        "sunlight": "Full Sun",
+        "rainfall": "600-800 mm/year",
+        "humidity": "Moderate",
+        "watering": "Moderate"
+      },
+      "soil": {"type": "Well-drained Sandy Loam", "ph": "7.0 - 7.5"},
+      "spacing": {"row_to_row": "40 cm", "plant_to_plant": "30 cm", "note": "Pinch the leading shoot to encourage bushier growth."},
+      "fertilizer": {"N": "40", "P": "80", "K": "80", "unit": "kg/acre"},
+      "companions": {"good": ["Tomato", "Chilli", "Rose"], "bad": ["None"], "explanation": "Acts as a trap crop for nematodes."},
+      "cultivation": {"life_cycle": "Annual", "method": "Transplanting", "labour": "Moderate", "season": "Year-round"},
+      "regions": ["Andhra Pradesh", "Karnataka", "Tamil Nadu", "West Bengal"],
+      "pests_diseases": ["Damping Off", "Spider Mites", "Leaf Minor"],
+      "tips": "Marigold is often used as a border crop for pest control."
+    },
+    {
+      "id": "rose_01",
+      "name": "Rose",
+      "category": "Floriculture Crops",
+      "scientific_name": "Rosa indica",
+      "image": "assets/images/rose.png",
+      "growing_conditions": {
+        "temperature": "15-28°C",
+        "sunlight": "Full Sun (6+ hours)",
+        "rainfall": "Moderate",
+        "humidity": "Moderate",
+        "watering": "Moderate (Morning)"
+      },
+      "soil": {"type": "Well-drained Loam", "ph": "6.0 - 7.0"},
+      "spacing": {"row_to_row": "60-90 cm", "plant_to_plant": "60-90 cm", "note": "Provide good air circulation between plants."},
+      "fertilizer": {"N": "100", "P": "100", "K": "100", "unit": "grams/plant/year"},
+      "companions": {"good": ["Garlic", "Onion", "Marigold"], "bad": ["None"], "explanation": "Garlic repels aphids and improves scent."},
+      "cultivation": {"life_cycle": "Perennial", "method": "Budding / Cutting", "labour": "High", "season": "Year-round"},
+      "regions": ["Karnataka", "Maharashtra", "Tamil Nadu", "UP"],
+      "pests_diseases": ["Black Spot", "Powdery Mildew", "Aphids", "Thrips"],
+      "tips": "Regular pruning in winter leads to heavy spring blooms."
     }
   ];
 

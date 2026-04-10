@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:agro_ai_app/localization.dart';
 import 'home_screen.dart';
 
 class OnboardingManualScreen extends StatefulWidget {
@@ -13,36 +14,36 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<Map<String, String>> onboardingData = [
+  List<Map<String, String>> get _onboardingData => [
     {
       "image": "assets/images/ob_1.png",
-      "title": "Problem Identification",
-      "text": "\"My crops are dying... I don’t know what’s wrong!\"\n\nObserve: yellowing leaves, spots, wilting",
+      "title": Lang.t("ob1_title"),
+      "text": Lang.t("ob1_text"),
     },
     {
       "image": "assets/images/ob_2.png",
-      "title": "Capture Crop Image",
-      "text": "\"Take a clear photo of the affected leaf.\"\n\nUse good lighting and focus",
+      "title": Lang.t("ob2_title"),
+      "text": Lang.t("ob2_text"),
     },
     {
       "image": "assets/images/ob_3.png",
-      "title": "Scan Leaf",
-      "text": "\"Scan the leaf using the app.\"\n\nUpload and wait for AI processing",
+      "title": Lang.t("ob3_title"),
+      "text": Lang.t("ob3_text"),
     },
     {
       "image": "assets/images/ob_4.png",
-      "title": "Detection Result",
-      "text": "\"Disease Detected: Leaf Blight\"\n\"Treatment: Use Fungicide Spray\"\n\n💡 Remember to give sun & water",
+      "title": Lang.t("ob4_title"),
+      "text": Lang.t("ob4_text"),
     },
     {
       "image": "assets/images/ob_5.png",
-      "title": "Improvement",
-      "text": "\"My crops are healthy now!\"\n\nFollow advice and monitor regularly",
+      "title": Lang.t("ob5_title"),
+      "text": Lang.t("ob5_text"),
     },
     {
       "image": "assets/images/ob_6.png",
-      "title": "Successful Harvest",
-      "text": "\"Good job, Kisan! Great harvest!\"\n\nHealthy crops, better yield, confidence",
+      "title": Lang.t("ob6_title"),
+      "text": Lang.t("ob6_text"),
     },
   ];
 
@@ -59,6 +60,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final data = _onboardingData;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -67,7 +69,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
-                itemCount: onboardingData.length,
+                itemCount: data.length,
                 onPageChanged: (index) {
                   setState(() {
                     _currentPage = index;
@@ -94,7 +96,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
                                 )
                               ],
                               image: DecorationImage(
-                                image: AssetImage(onboardingData[index]["image"]!),
+                                image: AssetImage(data[index]["image"]!),
                                 fit: BoxFit.contain,
                               ),
                             ),
@@ -102,7 +104,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
                         ),
                         const SizedBox(height: 48),
                         Text(
-                          onboardingData[index]["title"]!,
+                          data[index]["title"]!,
                           style: TextStyle(
                             fontFamily: 'Roboto',
                             fontSize: 28,
@@ -113,7 +115,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          onboardingData[index]["text"]!,
+                          data[index]["text"]!,
                           style: const TextStyle(
                             fontSize: 16,
                             color: Colors.black87,
@@ -122,15 +124,30 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 32),
-                        if (index < onboardingData.length - 1)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text("Swipe", style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
-                              const SizedBox(width: 8),
-                              Icon(Icons.arrow_forward_rounded, color: Colors.green.shade600),
-                            ],
+                        if (index < data.length - 1)
+                          InkWell(
+                            onTap: () {
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 500), 
+                                curve: Curves.easeInOut
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(20),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(Lang.t("swipe_hint"), style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.arrow_forward_rounded, color: Colors.green.shade600),
+                                ],
+                              ),
+                            ),
                           )
+                        else
+                          const SizedBox(height: 40), // Maintain spacing on last page
                       ],
                     ),
                   );
@@ -146,7 +163,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
                 children: [
                   Row(
                     children: List.generate(
-                      onboardingData.length,
+                      data.length,
                       (index) => AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         margin: const EdgeInsets.only(right: 8),
@@ -162,7 +179,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
                   
                   AnimatedCrossFade(
                     duration: const Duration(milliseconds: 300),
-                    crossFadeState: _currentPage == onboardingData.length - 1
+                    crossFadeState: _currentPage == data.length - 1
                         ? CrossFadeState.showFirst
                         : CrossFadeState.showSecond,
                     firstChild: ElevatedButton(
@@ -174,7 +191,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 4,
                       ),
-                      child: const Text("Get Started", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: Text(Lang.t("get_started"), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                     secondChild: TextButton(
                       onPressed: _completeOnboarding,
@@ -182,7 +199,7 @@ class _OnboardingManualScreenState extends State<OnboardingManualScreen> {
                         foregroundColor: Colors.grey.shade600,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
-                      child: const Text("Skip", style: TextStyle(fontSize: 16)),
+                      child: Text(Lang.t("skip"), style: const TextStyle(fontSize: 16)),
                     ),
                   ),
                 ],

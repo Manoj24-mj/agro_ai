@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:agro_ai_app/localization.dart';
 import 'package:agro_ai_app/service/weather_service.dart';
 import 'package:agro_ai_app/service/voice_service.dart';
+import 'package:agro_ai_app/widgets/searchable_picker.dart';
 import 'chatbot_screen.dart';
 import 'detector_screen.dart';
 import 'saved_screen.dart';
@@ -35,18 +36,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool _isLoadingWeather = false;
   final TextEditingController _cityController = TextEditingController();
   
-  String? _selectedStateName;
   int _bottomNavIndex = 0;
   bool _darkMode = false;
-  String userName = "Agro User";
+  String userName = "Smart Kisan User";
   String userPhone = "+91 9876543210";
   String farmSpecs = "Wheat & Corn • 15 Acres • Expert";
   File? _profileImage;
   DateTime? _lastRefreshTime;
-  bool _isAutoLocation = true;
-  double? _manualLat;
-  double? _manualLon;
-  String? _manualCityName;
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -64,45 +60,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _loadUserProfile();
     _vortexController = AnimationController(vsync: this, duration: const Duration(seconds: 15))..repeat();
     _vortexRotation = Tween<double>(begin: 0, end: 2 * 3.14159).animate(CurvedAnimation(parent: _vortexController, curve: Curves.linear));
-    
+    // Listen for language changes and rebuild the home screen immediately
+    Lang().addListener(_onLangChanged);
     Future.delayed(const Duration(milliseconds: 500), () => _fetchWeatherAuto());
   }
+
+  void _onLangChanged() => setState(() {});
 
   Future<void> _loadUserProfile() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      userName = prefs.getString('userName') ?? "Agro User";
+      userName = prefs.getString('userName') ?? "Smart Kisan User";
       userPhone = prefs.getString('userPhone') ?? "+91 9876543210";
       farmSpecs = prefs.getString('farmSpecs') ?? "Wheat & Corn • 15 Acres • Expert";
-      _isAutoLocation = prefs.getBool('isAutoLocation') ?? true;
-      _manualLat = prefs.getDouble('manualLat');
-      _manualLon = prefs.getDouble('manualLon');
-      _manualCityName = prefs.getString('manualCityName');
     });
   }
 
-  Future<void> _pinManualLocation(double lat, double lon, String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isAutoLocation = false;
-      _manualLat = lat;
-      _manualLon = lon;
-      _manualCityName = name;
-    });
-    await prefs.setBool('isAutoLocation', false);
-    await prefs.setDouble('manualLat', lat);
-    await prefs.setDouble('manualLon', lon);
-    await prefs.setString('manualCityName', name);
-    
-    _fetchWeatherForLocation(lat, lon, name);
-  }
 
-  Future<void> _toggleAutoLocation() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _isAutoLocation = true);
-    await prefs.setBool('isAutoLocation', true);
-    _fetchWeatherAuto(forceRefresh: true);
-  }
 
   Future<void> _fetchWeatherAuto({bool forceRefresh = false}) async {
     // 5-second cooldown for refresh button to protect API limits
@@ -114,21 +88,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     setState(() => _isLoadingWeather = true);
     if (forceRefresh) _lastRefreshTime = DateTime.now();
     
-    if (!_isAutoLocation && _manualLat != null && _manualLon != null) {
-      await _fetchWeatherForLocation(_manualLat!, _manualLon!, _manualCityName ?? "Pinned");
-      return;
-    }
-
     final data = await WeatherService.getWeatherAuto(forceRefresh: forceRefresh);
-    setState(() {
-      _weatherData = data;
-      _isLoadingWeather = false;
-    });
-  }
-
-  Future<void> _fetchWeatherForLocation(double lat, double lon, String name) async {
-    setState(() => _isLoadingWeather = true);
-    final data = await WeatherService.fetchFullWeatherData(lat, lon, name);
     setState(() {
       _weatherData = data;
       _isLoadingWeather = false;
@@ -158,12 +118,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 tooltip: "Switch Voice Gender",
                 onPressed: () {
                   setState(() => VoiceService.isMaleVoice = !VoiceService.isMaleVoice);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(VoiceService.isMaleVoice ? "Switched to Male AI Voice" : "Switched to Female AI Voice")));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(VoiceService.isMaleVoice ? Lang.t("voice_male") : Lang.t("voice_female"))));
                 },
               ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.language),
-                onSelected: (l) => setState(() => Lang.setLang(l)),
+                onSelected: (l) => setState(() => Lang().setLang(l)),
                 itemBuilder: (context) => const [
                   PopupMenuItem(value: "en", child: Text("English")),
                   PopupMenuItem(value: "kn", child: Text("ಕನ್ನಡ")),
@@ -213,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               children: [
                 Icon(Icons.eco, size: 48, color: Colors.green.shade800),
                 const SizedBox(height: 10),
-                Text("Agro AI Doctor", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                Text(Lang.t("title"), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
               ],
             ),
           ),
@@ -229,10 +189,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     _showSettingsDialog();
                   },
                 ),
-                ListTile(leading: Icon(Icons.feedback, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Feedback", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
-                ListTile(leading: Icon(Icons.share, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Share", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
-                ListTile(leading: Icon(Icons.contact_mail, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text("Contact", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
-                ListTile(leading: Icon(Icons.favorite, color: Colors.red.shade400), title: Text("Thanks", style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
+                ListTile(leading: Icon(Icons.feedback, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text(Lang.t("feedback"), style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
+                ListTile(leading: Icon(Icons.share, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text(Lang.t("share"), style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
+                ListTile(leading: Icon(Icons.contact_mail, color: _darkMode ? Colors.white70 : Colors.grey[700]), title: Text(Lang.t("contact"), style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
+                ListTile(leading: Icon(Icons.favorite, color: Colors.red.shade400), title: Text(Lang.t("thanks"), style: TextStyle(color: _darkMode ? Colors.white : Colors.black))),
                 ListTile(leading: Icon(Icons.logout, color: Colors.red), title: Text(Lang.t("logout")), onTap: () => Navigator.of(context).pushReplacementNamed('/')),
               ],
             ),
@@ -251,12 +211,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text("Settings"),
+          title: Text(Lang.t("settings")),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SwitchListTile(
-                title: const Text("Dark Mode"),
+                title: Text(Lang.t("dark_mode")),
                 value: _darkMode,
                 onChanged: (v) {
                   setDialogState(() => _darkMode = v);
@@ -264,18 +224,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 },
               ),
               SwitchListTile(
-                title: const Text("Camera/Microphone"),
+                title: Text(Lang.t("cam_mic")),
                 value: true,
                 onChanged: (v) {},
               ),
               SwitchListTile(
-                title: const Text("Notifications"),
+                title: Text(Lang.t("notifications")),
                 value: true,
                 onChanged: (v) {},
               ),
             ],
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))],
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(Lang.t("close")))],
         ),
       ),
     );
@@ -339,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               onTap: () {
                  Navigator.push(context, MaterialPageRoute(builder: (context) => UserActivityScreen(
                     title: Lang.t("my_posts"), 
-                    emptyMessage: "Your profile is empty. You haven't shared anything yet.",
+                    emptyMessage: Lang.t("empty_profile"),
                     items: [], // Mock data
                  )));
               },
@@ -351,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               onTap: () {
                  Navigator.push(context, MaterialPageRoute(builder: (context) => UserActivityScreen(
                     title: Lang.t("my_listings"), 
-                    emptyMessage: "You don't have any items listed in the marketplace.",
+                    emptyMessage: Lang.t("empty_listings"),
                     items: [], // Mock data
                  )));
               },
@@ -392,23 +352,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Edit $field"),
+          title: Text("${Lang.t("edit_title")} $field"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: isFarmSpecs 
               ? [
                   // Vertical inputs for Farm Specs components
-                  TextField(controller: c1, decoration: const InputDecoration(labelText: "Crops", hintText: "e.g. Wheat & Corn")),
+                  TextField(controller: c1, decoration: InputDecoration(labelText: Lang.t("crop_label"), hintText: Lang.t("crop_hint"))),
                   const SizedBox(height: 12),
-                  TextField(controller: c2, decoration: const InputDecoration(labelText: "Land Size", hintText: "e.g. 15 Acres")),
+                  TextField(controller: c2, decoration: InputDecoration(labelText: Lang.t("land_size_label"), hintText: Lang.t("land_size_hint"))),
                   const SizedBox(height: 12),
-                  TextField(controller: c3, decoration: const InputDecoration(labelText: "Experience Level", hintText: "e.g. Expert")),
+                  TextField(controller: c3, decoration: InputDecoration(labelText: Lang.t("exp_level_label"), hintText: Lang.t("exp_level_hint"))),
                 ]
               : [
                   // Standard vertical input for singular fields
                   TextField(
                     controller: c1,
-                    decoration: InputDecoration(hintText: "Enter new $field"),
+                    decoration: InputDecoration(hintText: "${Lang.t("enter_new")} $field"),
                   ),
                 ],
           ),
@@ -481,19 +441,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             _WeatherCard(
               weather: _weatherData,
               isLoading: _isLoadingWeather,
-              isAuto: _isAutoLocation,
               onRefresh: () => _fetchWeatherAuto(forceRefresh: true),
-              onToggleAuto: _toggleAutoLocation,
-              selectedStateName: _selectedStateName,
-              onStateSelected: (name) {
-                setState(() {
-                  _selectedStateName = name;
-                  _cityController.clear(); 
-                });
-              },
-              onCitySelected: (lat, lon, name) {
-                _pinManualLocation(lat, lon, name);
-              },
             ),
             const SizedBox(height: 30),
             
@@ -508,9 +456,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     child: const Icon(Icons.psychology_outlined, color: Colors.green, size: 24),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    "AI Command Center",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    Lang.t("ai_command_center"),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -622,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             
             const SizedBox(height: 24),
             
-            // 2. Agro AI Tools Section
+            // 2. Smart Kisan Tools Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
@@ -633,9 +581,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     child: const Icon(Icons.terminal_outlined, color: Colors.teal, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    "Agro AI Tools",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    Lang.t("smart_tools"),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -680,7 +628,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               children: [
                                 _buildDashboardButton(
                                   context: context,
-                                  title: "Fertilizer",
+                                  title: Lang.t("fertilizer"),
                                   icon: Icons.science_outlined,
                                   color: Colors.orangeAccent.shade100,
                                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Fertilizer"))),
@@ -688,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                                 _buildDashboardButton(
                                   context: context,
-                                  title: "Pesticide",
+                                  title: Lang.t("pesticide"),
                                   icon: Icons.pest_control,
                                   color: Colors.redAccent.shade100,
                                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Pesticide"))),
@@ -696,7 +644,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                                 _buildDashboardButton(
                                   context: context,
-                                  title: "Farming",
+                                  title: Lang.t("farming"),
                                   icon: Icons.agriculture,
                                   color: Colors.lightGreenAccent.shade100,
                                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Farming"))),
@@ -704,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                                 _buildDashboardButton(
                                   context: context,
-                                  title: "Crop Price",
+                                  title: Lang.t("crop_price"),
                                   icon: Icons.currency_exchange,
                                   color: Colors.greenAccent.shade100,
                                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CropPriceScreen())),
@@ -734,9 +682,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     child: const Icon(Icons.settings_input_component_outlined, color: Colors.green, size: 24),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    "Agro AI Control Panel",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  Text(
+                    Lang.t("control_panel"),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                 ],
               ),
@@ -776,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           children: [
                             _buildDashboardButton(
                               context: context,
-                              title: "Crops DB",
+                              title: Lang.t("crops_db"),
                               icon: Icons.grass,
                               color: Colors.greenAccent,
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CropsModuleScreen())),
@@ -784,7 +732,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ),
                             _buildDashboardButton(
                               context: context,
-                              title: "Disease Alert",
+                              title: Lang.t("disease_alert"),
                               icon: Icons.notification_important,
                               color: Colors.redAccent,
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DiseaseAlertScreen())),
@@ -792,7 +740,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ),
                             _buildDashboardButton(
                               context: context,
-                              title: "Agro Tips",
+                              title: Lang.t("agro_tips"),
                               icon: Icons.lightbulb_outline,
                               color: Colors.yellowAccent,
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CultivationTipsScreen())),
@@ -800,7 +748,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ),
                             _buildDashboardButton(
                               context: context,
-                              title: "Analytics",
+                              title: Lang.t("analytics"),
                               icon: Icons.analytics_outlined,
                               color: Colors.blueAccent,
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AnalyticsScreen())),
@@ -878,21 +826,11 @@ class _WeatherCard extends StatefulWidget {
   final Map<String, dynamic>? weather;
   final bool isLoading;
   final VoidCallback onRefresh;
-  final bool isAuto;
-  final VoidCallback onToggleAuto;
-  final String? selectedStateName;
-  final Function(String name) onStateSelected;
-  final Function(double lat, double lon, String name) onCitySelected;
 
   const _WeatherCard({
     required this.weather,
     required this.isLoading,
     required this.onRefresh,
-    required this.isAuto,
-    required this.onToggleAuto,
-    required this.selectedStateName,
-    required this.onStateSelected,
-    required this.onCitySelected,
   });
 
   @override
@@ -915,30 +853,39 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
   @override
   void initState() {
     super.initState();
+    _indianStates.sort();
     _animController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 0.98, end: 1.02).animate(CurvedAnimation(parent: _animController, curve: Curves.easeInOutSine));
+    Lang().addListener(_onLangChanged);
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _animController.dispose();
+    Lang().removeListener(_onLangChanged);
     super.dispose();
   }
+
+  void _onLangChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
     bool containsError = widget.weather?["error"] != null;
-    String cityName = containsError ? widget.selectedStateName ?? "Location Error" : (widget.weather?["name"] ?? "--");
+    String mainLoc = widget.weather?["name"] ?? "--";
+    String stateLoc = widget.weather?["state"] ?? "";
+    String fullLoc = stateLoc.isNotEmpty ? "$mainLoc, $stateLoc" : mainLoc;
+    String cityName = containsError ? Lang.t("loc_error") : fullLoc;
     String temp = containsError ? "--" : (widget.weather?["main"]?["temp"]?.toString() ?? "--");
     
     // Simplify technical errors for users (especially 'Failed to fetch' on Web)
     String errorMsg = containsError ? widget.weather!["error"].toString() : "";
     if (errorMsg.contains("Failed to fetch") || errorMsg.contains("Network error")) {
-       errorMsg = "Connection lost. Tap refresh below.";
+       errorMsg = Lang.t("conn_lost");
     }
     
-    String main = containsError ? errorMsg : (widget.weather?["weather"]?[0]?["main"] ?? "--");
+    String mainRaw = containsError ? errorMsg : (widget.weather?["weather"]?[0]?["main"] ?? "--");
+    String main = containsError ? mainRaw : Lang.t(mainRaw);
     
     double wind = (widget.weather?["wind"]?["speed"] ?? 0.0).toDouble();
     int aqi = (widget.weather?["aqi"] ?? 0).toInt();
@@ -990,7 +937,7 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              if (!containsError) Icon(widget.isAuto ? Icons.my_location : Icons.push_pin, size: 16, color: Colors.teal),
+                              if (!containsError) const Icon(Icons.my_location, size: 16, color: Colors.teal),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -1004,17 +951,6 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                                   style: TextStyle(color: containsError ? Colors.redAccent : Colors.teal[700], fontSize: 13, fontWeight: FontWeight.w600)
                                 ),
                               ),
-                              if (!widget.isAuto) ...[
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: widget.onToggleAuto,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(5)),
-                                    child: const Text("Reset", style: TextStyle(fontSize: 10, color: Colors.teal, fontWeight: FontWeight.bold)),
-                                  ),
-                                )
-                              ]
                             ],
                           ),
                         ],
@@ -1053,71 +989,14 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
                   runSpacing: 12,
                   alignment: WrapAlignment.center,
                   children: [
-                    _WeatherTile(label: "Humidity", value: "$humidity%", icon: Icons.water_drop, color: Colors.blueAccent),
-                    _WeatherTile(label: "Wind", value: "$wind km/h", icon: Icons.air, color: Colors.cyan),
-                    _WeatherTile(label: "UV", value: "$uvi", icon: Icons.wb_sunny, color: _getUVColor(uvi)),
-                    _WeatherTile(label: "AQI", value: _getAQILevel(aqi), icon: Icons.waves, color: _getAQIColor(aqi)),
+                    _WeatherTile(label: Lang.t("humidity_label"), value: "$humidity%", icon: Icons.water_drop, color: Colors.blueAccent),
+                    _WeatherTile(label: Lang.t("wind_label"), value: "$wind km/h", icon: Icons.air, color: Colors.cyan),
+                    _WeatherTile(label: Lang.t("uv_label"), value: "$uvi", icon: Icons.wb_sunny, color: _getUVColor(uvi)),
+                    _WeatherTile(label: Lang.t("aqi_label"), value: _getAQILevel(aqi), icon: Icons.waves, color: _getAQIColor(aqi)),
                   ],
                 ),
                 
-                const SizedBox(height: 30),
-                
-                _buildFrostedSearchField(
-                  hint: "Step 1: Select State...",
-                  icon: Icons.map,
-                  enabled: true,
-                  autocomplete: Autocomplete<String>(
-                    optionsBuilder: (TextEditingValue textEditingValue) {
-                      return _indianStates
-                        .where((state) => state.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-                    },
-                    onSelected: (String selection) => widget.onStateSelected(selection),
-                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                      return TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                        decoration: InputDecoration(
-                          hintText: "Step 1: Select State...",
-                          border: InputBorder.none,
-                          icon: const Padding(padding: EdgeInsets.only(left: 10), child: Icon(Icons.map, color: Colors.teal)),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                _buildFrostedSearchField(
-                  hint: "Step 2: Search City...",
-                  icon: Icons.location_city,
-                  enabled: widget.selectedStateName != null,
-                  autocomplete: Autocomplete<Map<String, dynamic>>(
-                    displayStringForOption: (option) => option["name"],
-                    optionsBuilder: (TextEditingValue textEditingValue) async {
-                      if (textEditingValue.text.length < 3) return const Iterable.empty();
-                      try { 
-                        return await WeatherService.searchCities(textEditingValue.text, "IN"); 
-                      } catch (e) { 
-                        return const Iterable.empty(); 
-                      }
-                    },
-                    onSelected: (Map<String, dynamic> selection) => widget.onCitySelected(selection["latitude"], selection["longitude"], selection["name"]),
-                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                      return TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        enabled: widget.selectedStateName != null,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                        decoration: InputDecoration(
-                          hintText: widget.selectedStateName == null ? "Select a state first" : "Search City...",
-                          border: InputBorder.none,
-                          icon: Padding(padding: const EdgeInsets.only(left: 10), child: Icon(Icons.location_city, color: widget.selectedStateName == null ? Colors.grey : Colors.teal)),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                const SizedBox(height: 10),
               ],
             ),
           ),
@@ -1126,17 +1005,31 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
     );
   }
 
-  Widget _buildFrostedSearchField({required String hint, required IconData icon, required bool enabled, required Widget autocomplete}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: enabled ? Colors.white.withOpacity(0.6) : Colors.grey.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.5)),
-        boxShadow: [
-          if (enabled) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-        ]
+  Widget _buildFrostedSearchField({required String hint, required IconData icon, required bool enabled, Widget? autocomplete, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        decoration: BoxDecoration(
+          color: enabled ? Colors.white.withOpacity(0.6) : Colors.grey.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withOpacity(0.5)),
+          boxShadow: [
+            if (enabled) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+          ]
+        ),
+        child: autocomplete ?? Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          child: Row(
+            children: [
+              Icon(icon, color: enabled ? Colors.teal : Colors.grey),
+              const SizedBox(width: 12),
+              Text(hint, style: TextStyle(color: enabled ? Colors.black87 : Colors.grey, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              if (enabled) const Icon(Icons.search, size: 18, color: Colors.teal),
+            ],
+          ),
+        ),
       ),
-      child: autocomplete,
     );
   }
 
@@ -1149,11 +1042,11 @@ class _WeatherCardState extends State<_WeatherCard> with SingleTickerProviderSta
   }
 
   String _getAQILevel(int aqi) {
-    if (aqi <= 50) return "Good";
-    if (aqi <= 100) return "Fair";
-    if (aqi <= 150) return "Moderate";
-    if (aqi <= 200) return "Poor";
-    return "Very Poor";
+    if (aqi <= 50) return Lang.t("aqi_good");
+    if (aqi <= 100) return Lang.t("aqi_fair");
+    if (aqi <= 150) return Lang.t("aqi_moderate");
+    if (aqi <= 200) return Lang.t("aqi_poor");
+    return Lang.t("aqi_vpoor");
   }
 
   Color _getAQIColor(int aqi) {

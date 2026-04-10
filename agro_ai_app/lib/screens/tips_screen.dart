@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:agro_ai_app/localization.dart';
 import 'package:agro_ai_app/service/data_service.dart';
 import 'package:agro_ai_app/service/weather_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -76,7 +77,7 @@ class _CultivationTipsScreenState extends State<CultivationTipsScreen> with Tick
     return Scaffold(
       backgroundColor: const Color(0xFFF9FBF9),
       appBar: AppBar(
-        title: Text("🌾 Cultivation Planner", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(Lang.t("cultivation_planner"), style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.green[800],
         foregroundColor: Colors.white,
         actions: [IconButton(icon: const Icon(Icons.settings), onPressed: _setSowingDate)],
@@ -93,9 +94,9 @@ class _CultivationTipsScreenState extends State<CultivationTipsScreen> with Tick
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Row(
                   children: [
-                    _tabButton(0, "Smart Plan", Icons.auto_awesome),
+                    _tabButton(0, Lang.t("smart_plan_tab"), Icons.auto_awesome),
                     const SizedBox(width: 12),
-                    _tabButton(1, "Daily Tips", Icons.lightbulb_outline),
+                    _tabButton(1, Lang.t("daily_tips_tab"), Icons.lightbulb_outline),
                   ],
                 ),
               ),
@@ -149,8 +150,8 @@ class _CultivationTipsScreenState extends State<CultivationTipsScreen> with Tick
           Icon(isHot ? Icons.wb_sunny : Icons.cloud, color: isHot ? Colors.orange : Colors.blue),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-               Text("Weather Logic Alert ($temp°C)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-               Text(isHot ? "Action: Increase Water Depth. High evaporation detected." : "Conditions stable for monitoring.", style: const TextStyle(fontSize: 12)),
+               Text("${Lang.t("weather_logic_alert")} ($temp°C)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+               Text(isHot ? Lang.t("hot_water_action") : Lang.t("stable_weather"), style: const TextStyle(fontSize: 12)),
           ]))
         ],
       ),
@@ -165,10 +166,10 @@ class _CultivationTipsScreenState extends State<CultivationTipsScreen> with Tick
           children: [
              Icon(Icons.calendar_month, size: 80, color: Colors.green.withOpacity(0.1)),
              const SizedBox(height: 20),
-             const Text("No Smart Plan Active", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-             const Text("Set your sowing date to begin tracking.", style: TextStyle(color: Colors.grey)),
+             Text(Lang.t("no_smart_plan"), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+             Text(Lang.t("set_sowing_date_msg"), style: const TextStyle(color: Colors.grey)),
              const SizedBox(height: 24),
-             ElevatedButton.icon(onPressed: _setSowingDate, icon: const Icon(Icons.add), label: const Text("Set Sowing Date"), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800], foregroundColor: Colors.white)),
+             ElevatedButton.icon(onPressed: _setSowingDate, icon: const Icon(Icons.add), label: Text(Lang.t("set_sowing_date_btn")), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800], foregroundColor: Colors.white)),
           ],
         ),
       );
@@ -224,7 +225,7 @@ class _CultivationTipsScreenState extends State<CultivationTipsScreen> with Tick
           children: [
             Row(
               children: [
-                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: isCurrent ? Colors.orange : Colors.grey.shade200, borderRadius: BorderRadius.circular(8)), child: Text(isCurrent ? "DUE NOW" : "UPCOMING", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isCurrent ? Colors.white : Colors.grey))),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: isCurrent ? Colors.orange : Colors.grey.shade200, borderRadius: BorderRadius.circular(8)), child: Text(isCurrent ? Lang.t("due_now") : Lang.t("upcoming"), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isCurrent ? Colors.white : Colors.grey))),
                 const Spacer(),
                 Checkbox(value: isDone, onChanged: (_) => _toggleTask(task['id']), activeColor: Colors.green),
               ],

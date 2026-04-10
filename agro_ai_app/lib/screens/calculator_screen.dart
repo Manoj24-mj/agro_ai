@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:agro_ai_app/widgets/searchable_picker.dart';
+import 'package:agro_ai_app/localization.dart';
 
 class CalculatorScreen extends StatefulWidget {
   final String type; // "Fertilizer", "Pesticide", or "Farming"
@@ -18,7 +20,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String _selectedCrop = "Rice";
   String _selectedProduct = "";
   String _selectedAreaUnit = "Hectares";
-  String _selectedDosageUnit = "ml"; // ml or kg
+  String _selectedDosageUnit = "kg"; // Standardized to kg
   String _result = "";
   Map<String, dynamic>? _lastInputs;
 
@@ -54,15 +56,27 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   void initState() {
     super.initState();
+    _fertilizers.sort();
+    _pesticides.sort();
+    _globalCrops.sort();
     if (widget.type == "Fertilizer") _selectedProduct = _fertilizers.first;
     if (widget.type == "Pesticide") _selectedProduct = _pesticides.first;
     _selectedCrop = _globalCrops.first;
+    Lang().addListener(_onLangChanged);
+  }
+
+  void _onLangChanged() { if (mounted) setState(() {}); }
+
+  @override
+  void dispose() {
+    Lang().removeListener(_onLangChanged);
+    super.dispose();
   }
 
   void _calculate() {
     FocusScope.of(context).unfocus();
     if (_areaController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter an area.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(Lang.t('enter_area'))));
       return;
     }
     
@@ -87,23 +101,38 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       // 1 Acre = 40 Guntas
       // 1 Hectare approx 100 Guntas (actually 98.8)
       
-      if (widget.type == "Fertilizer") {
+      if (widget.type == "Fertilizer" || widget.type == "Pesticide") {
         double totalDose = targetDose * area;
-        _result = "Recommended Product: $_selectedProduct\nTotal Quantity: ${totalDose.toStringAsFixed(1)} kg\nFor $_selectedCrop in $area $_selectedAreaUnit";
-      } else if (widget.type == "Pesticide") {
-        double totalDose = targetDose * area;
-        double totalWater = waterRatio * area;
-        _result = "Recommended Product: $_selectedProduct\nTotal Dose: ${totalDose.toStringAsFixed(1)} $_selectedDosageUnit\nMix with water: ${totalWater.toStringAsFixed(1)} Liters\nFor $_selectedCrop in $area $_selectedAreaUnit";
+        double totalWater = waterRatio * area; // Total water in liters
+        double tanksRequired = totalWater / 15.0; // Assuming standard 15L knapsack sprayer
+        double dosePerTank = tanksRequired > 0 ? totalDose / tanksRequired : 0.0;
+        double ratio = totalDose > 0 ? totalWater / totalDose : 0.0;
+        
+        // Simple safety check: % concentration assuming dose is in kg/L
+        double doseInGramsOrMl = dosePerTank * 1000.0;
+        double concentrationPercent = (doseInGramsOrMl / 15000.0) * 100.0;
+        String safety = concentrationPercent <= 5.0 ? "Safe (≤ 5%)" : "High Risk (> 5%) - May scorch crops";
+
+        String typeLower = widget.type.toLowerCase();
+        
+        _result = '''I am planning to apply $typeLower ($_selectedProduct) to my $area $_selectedAreaUnit of ${Lang.t(_selectedCrop)} land. I need help calculating the following outputs based on my inputs:
+
+• Total $typeLower required: ${totalDose.toStringAsFixed(2)} $_selectedDosageUnit
+• ${widget.type} per $_selectedAreaUnit: ${targetDose.toStringAsFixed(2)} $_selectedDosageUnit
+• ${widget.type} per tank (15L): ${dosePerTank.toStringAsFixed(3)} $_selectedDosageUnit
+• Water-to-$typeLower ratio: ${ratio.toStringAsFixed(1)} Liters/$_selectedDosageUnit
+• Number of tanks required: ${tanksRequired.ceil()} tanks (approx. 15L each)
+• Safe concentration check: ${concentrationPercent.toStringAsFixed(2)}% - $safety''';
       } else {
         // For Yield estimation, we normalize to Hectares to keep existing formulas
         double factor = 1.0;
         if (_selectedAreaUnit == "Acres") factor = 0.4047;
-        else if (_selectedAreaUnit == "Guntas") factor = 0.0101;
+        else if (_selectedAreaUnit == "Guntha") factor = 0.0101;
         
         double areaInHa = area * factor;
         double yieldEst = 3500 * areaInHa;
         double revenue = yieldEst * 20; // 20 per kg
-        _result = "Estimated Yield: ${yieldEst.toStringAsFixed(0)} kg\nEstimated Revenue: ₹${revenue.toStringAsFixed(0)}\nFor $_selectedCrop in $area $_selectedAreaUnit";
+        _result = "${Lang.t("est_yield")}: ${yieldEst.toStringAsFixed(0)} kg\n${Lang.t("est_rev")}: ₹${revenue.toStringAsFixed(0)}\n${Lang.t("for")} ${Lang.t(_selectedCrop)} ${Lang.t("in")} $area ${Lang.t(_selectedAreaUnit)}";
       }
     });
   }
@@ -131,15 +160,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Why wasn't this helpful?", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(Lang.t("feedback_why"), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context))
                   ],
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: selectedReason,
-                  items: ["Incorrect calculation", "Hard to understand", "Not relevant", "App bug", "Other"]
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                  items: ["feedback_incorrect", "feedback_hard", "feedback_not_relevant", "feedback_bug", "feedback_other"]
+                      .map<DropdownMenuItem<String>>((e) => DropdownMenuItem(value: Lang.t(e), child: Text(Lang.t(e)))).toList(),
                   onChanged: (val) => setSheetState(() => selectedReason = val!),
                   decoration: InputDecoration(
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -169,7 +198,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                   ),
-                  child: const Text("Submit Feedback", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: Text(Lang.t("submit_feedback"), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -204,7 +233,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
-        title: Text("${widget.type} Calculator", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(Lang.t("${widget.type}_calc"), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: const Color(0xFF2E7D32),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -215,7 +244,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Calculate for ${widget.type}", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+              Text("${Lang.t("calculate_btn")} ${Lang.t(widget.type)}", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
               const SizedBox(height: 20),
               
               Container(
@@ -227,30 +256,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    DropdownButtonFormField<String>(
-                      value: _selectedCrop,
-                      items: _globalCrops.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                      onChanged: (v) => setState(() => _selectedCrop = v!),
-                      decoration: InputDecoration(
-                        labelText: "Crop Type", 
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        prefixIcon: const Icon(Icons.grass, color: Color(0xFF2E7D32))
-                      ),
+                    _buildSearchableSelector(
+                      label: Lang.t("select_crop_label"),
+                      value: Lang.t(_selectedCrop),
+                      icon: Icons.grass,
+                      items: _globalCrops.map<String>((c) => Lang.t(c)).toList(),
+                      onChanged: (v) => setState(() => _selectedCrop = v),
                     ),
                     if (widget.type != "Farming") ...[
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
+                      _buildSearchableSelector(
+                        label: "${Lang.t("select_product")} ${Lang.t(widget.type)}",
                         value: _selectedProduct,
-                        items: (widget.type == "Fertilizer" ? _fertilizers : _pesticides)
-                            .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                        onChanged: (v) => setState(() => _selectedProduct = v!),
-                        decoration: InputDecoration(
-                          labelText: "Select ${widget.type}", 
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          prefixIcon: Icon(widget.type == "Fertilizer" ? Icons.science : Icons.pest_control, color: const Color(0xFF2E7D32))
-                        ),
+                        icon: widget.type == "Fertilizer" ? Icons.science : Icons.pest_control,
+                        items: widget.type == "Fertilizer" ? _fertilizers : _pesticides,
+                        onChanged: (v) => setState(() => _selectedProduct = v),
                       ),
                     ],
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -258,7 +281,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           child: TextField(
                             controller: _areaController,
                             decoration: InputDecoration(
-                              labelText: "Farm Area", 
+                              labelText: Lang.t("enter_area"), 
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                               prefixIcon: const Icon(Icons.landscape, color: Color(0xFF2E7D32))
                             ),
@@ -270,7 +293,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           flex: 1,
                           child: DropdownButtonFormField<String>(
                             value: _selectedAreaUnit,
-                            items: ["Hectares", "Acres", "Guntas"].map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12)))).toList(),
+                            items: ["Hectares", "Acres", "Guntha"].map((e) => DropdownMenuItem(value: e, child: Text(Lang.t(e), style: const TextStyle(fontSize: 12)))).toList(),
                             onChanged: (v) => setState(() => _selectedAreaUnit = v!),
                             decoration: InputDecoration(
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -283,43 +306,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     
                     if (widget.type != "Farming") ...[
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: TextField(
-                              controller: _doseController,
-                              decoration: InputDecoration(
-                                labelText: "Target Dosage", 
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                prefixIcon: const Icon(Icons.medication, color: Color(0xFF2E7D32)),
-                                suffixText: widget.type == "Fertilizer" ? "kg" : null
-                              ),
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                          if (widget.type == "Pesticide") ...[
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 1,
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedDosageUnit,
-                                items: ["ml", "kg"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                                onChanged: (v) => setState(() => _selectedDosageUnit = v!),
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10)
-                                ),
-                              ),
-                            ),
-                          ]
-                        ],
+                      TextField(
+                        controller: _doseController,
+                        decoration: InputDecoration(
+                          labelText: Lang.t("dosage"), 
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.medication, color: Color(0xFF2E7D32)),
+                          suffixText: "${Lang.t("kg")}/${Lang.t(_selectedAreaUnit)}"
+                        ),
+                        keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: _waterController,
                         decoration: InputDecoration(
-                          labelText: "Water Volume (Liters per area)", 
+                          labelText: "${Lang.t("water")} (${Lang.t("Liters")} ${Lang.t("per")} ${Lang.t(_selectedAreaUnit)})", 
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           prefixIcon: const Icon(Icons.water_drop, color: Color(0xFF2E7D32)),
                         ),
@@ -334,7 +335,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         minimumSize: const Size(double.infinity, 55),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))
                       ),
-                      child: const Text("Calculate", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: Text(Lang.t("calculate_btn"), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ],
                 ),
@@ -360,7 +361,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         children: [
                           const Icon(Icons.science, color: Colors.teal, size: 28),
                           const SizedBox(width: 10),
-                          const Text("Result", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+                          Text(Lang.t("calc_result"), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -425,6 +426,48 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               ]
             ],
           ),
+        ),
+      ),
+    );
+  }
+  Widget _buildSearchableSelector({
+    required String label,
+    required String value,
+    required IconData icon,
+    required List<String> items,
+    required ValueChanged<String> onChanged,
+  }) {
+    return InkWell(
+      onTap: () {
+        SearchablePicker.show(
+          context,
+          title: label,
+          items: items,
+          selectedItem: value,
+          onSelected: onChanged,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF2E7D32)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down, color: Colors.grey),
+          ],
         ),
       ),
     );

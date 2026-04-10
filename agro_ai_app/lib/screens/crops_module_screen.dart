@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:agro_ai_app/localization.dart';
 import 'package:agro_ai_app/service/data_service.dart';
 import 'package:agro_ai_app/service/voice_service.dart';
 import 'package:agro_ai_app/screens/detector_screen.dart';
@@ -61,7 +62,7 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(_activeCategory ?? "Crop Categories", style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(_activeCategory != null ? Lang.t(_activeCategory!) : Lang.t("browse_category"), style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.green[800],
         elevation: 0,
         foregroundColor: Colors.white,
@@ -82,14 +83,14 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
                     onChanged: _onSearch,
                     decoration: InputDecoration(
                       filled: true, fillColor: Colors.white, prefixIcon: const Icon(Icons.search, color: Colors.green),
-                      hintText: "Search Cereals, Fruits, Pests...",
+                      hintText: Lang.t("search_hint_crops"),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
                     ),
                   ),
                   if (_currentQuery.isNotEmpty) 
                     Padding(
                        padding: const EdgeInsets.only(top: 10, left: 10),
-                       child: Text("Searching for: \"$_currentQuery\"", style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                       child: Text("${Lang.t("searching_for")} \"$_currentQuery\"", style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
                 ],
               ),
@@ -114,7 +115,7 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Browse by Category", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(Lang.t("browse_category"), style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           GridView.builder(
             shrinkWrap: true,
@@ -138,7 +139,7 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
                     children: [
                       Text(cat["icon"], style: const TextStyle(fontSize: 28)),
                       const SizedBox(height: 6),
-                      Text(cat["name"], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Colors.black87), textAlign: TextAlign.center),
+                      Text(Lang.t(cat["name"]), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Colors.black87), textAlign: TextAlign.center),
                     ],
                   ),
                 ),
@@ -156,7 +157,7 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Row(children: [const Icon(Icons.auto_awesome, color: Colors.orange, size: 20), const SizedBox(width: 8), Text("Smart Recommendations for $_state", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold))]),
+          child: Row(children: [const Icon(Icons.auto_awesome, color: Colors.orange, size: 20), const SizedBox(width: 8), Text("${Lang.t("smart_reco")} $_state", style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold))]),
         ),
         SizedBox(
           height: 160,
@@ -181,10 +182,10 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Found ${_allCrops.length} Crops", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+              Text(Lang.t("found_crops").replaceFirst("{n}", _allCrops.length.toString()), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
               DropdownButton<String>(
                 value: _selectedSeason,
-                items: ["All", "Kharif", "Rabi", "Zaid"].map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12)))).toList(),
+                items: ["All", "Kharif", "Rabi", "Zaid"].map((s) => DropdownMenuItem(value: s, child: Text(Lang.t(s), style: const TextStyle(fontSize: 12)))).toList(),
                 onChanged: (v) {
                    setState(() {
                       _selectedSeason = v!;
@@ -214,12 +215,12 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
         width: 200,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(25),
-          image: DecorationImage(image: NetworkImage(crop["image"]), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken)),
+          image: DecorationImage(image: AssetImage(crop["image"]), fit: BoxFit.cover, colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken)),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [
-             Text(crop["name"], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-             Text(crop["category"], style: const TextStyle(color: Colors.white70, fontSize: 12)),
+             Text(Lang.t(crop["name"]), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+             Text(Lang.t(crop["category"]), style: const TextStyle(color: Colors.white70, fontSize: 12)),
         ]),
       ),
     );
@@ -233,16 +234,16 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade100), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
          child: Row(
            children: [
-             ClipRRect(borderRadius: BorderRadius.circular(15), child: Image.network(crop["image"], width: 80, height: 80, fit: BoxFit.cover)),
+             ClipRRect(borderRadius: BorderRadius.circular(15), child: Image.asset(crop["image"], width: 80, height: 80, fit: BoxFit.cover)),
              const SizedBox(width: 16),
              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                 Text(crop["name"], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                 Text(Lang.t(crop["name"]), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                  Text(crop["scientific_name"], style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: 12)),
                  const SizedBox(height: 8),
                  Row(children: [
                     Icon(Icons.calendar_today, size: 10, color: Colors.green),
                     const SizedBox(width: 4),
-                    Text(crop["cultivation"]["season"], style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
+                    Text(Lang.t(crop["cultivation"]["season"]), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
                  ]),
              ])),
              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
@@ -270,12 +271,12 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
   final VoiceService _voiceService = VoiceService();
 
   void _listenToSection(String title, String content) {
-    _voiceService.speak("$title. $content");
+    _voiceService.speak("${Lang.t(title)}. $content");
   }
 
   void _listenToAll() {
     final c = widget.crop;
-    String fullText = "Description for ${c['name']}. Category: ${c['category']}. Scientific Name: ${c['scientific_name']}. "
+    String fullText = "Description for ${Lang.t(c['name'])}. Category: ${Lang.t(c['category'])}. Scientific Name: ${c['scientific_name']}. "
         "Growing conditions: Temperature ${c['growing_conditions']['temperature']}, Watering level ${c['growing_conditions']['watering']}. "
         "Soil requirement: ${c['soil']['type']}. "
         "NPK Fertilizer: Nitrogen ${c['fertilizer']['N']}, Phosphorus ${c['fertilizer']['P']}, Potassium ${c['fertilizer']['K']}. "
@@ -294,12 +295,12 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
           SliverAppBar(
             expandedHeight: 300, pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              background: Image.network(c["image"], fit: BoxFit.cover),
-              title: Text(c["name"], style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 24, shadows: [Shadow(color: Colors.black, blurRadius: 10)])),
+              background: Image.asset(c["image"], fit: BoxFit.cover),
+              title: Text(Lang.t(c["name"]), style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 24, shadows: [Shadow(color: Colors.black, blurRadius: 10)])),
             ),
             backgroundColor: Colors.green[800],
             actions: [
-              IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () => Share.share("Checkout agricultural data for ${c['name']} on Agro AI!")),
+              IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () => Share.share("Checkout agricultural data for ${Lang.t(c['name'])} on Smart Kisan!")),
             ],
           ),
           
@@ -315,42 +316,42 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
                     children: [
                       const Icon(Icons.headset_rounded, color: Colors.white, size: 24),
                       const SizedBox(width: 12),
-                      const Expanded(child: Text("Listen to Full Details", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                      TextButton(onPressed: _listenToAll, child: const Text("Listen All", style: TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold))),
+                      Expanded(child: Text(Lang.t("listen_full"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                      TextButton(onPressed: _listenToAll, child: Text(Lang.t("listen_all"), style: const TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold))),
                     ],
                   ),
                 ),
               ),
 
-              _buildSectionCard("🌤️ Growing Conditions", [
-                _iconGridItem(Icons.wb_sunny, "Temperature", c['growing_conditions']['temperature']),
-                _iconGridItem(Icons.light_mode, "Sunlight", c['growing_conditions']['sunlight']),
-                _iconGridItem(Icons.water, "Watering", c['growing_conditions']['watering']),
-                _iconGridItem(Icons.cloud_outlined, "Humidity", c['growing_conditions']['humidity']),
-              ], onListen: () => _listenToSection("Growing Conditions", "Temperature is ${c['growing_conditions']['temperature']} and Sunlight required is ${c['growing_conditions']['sunlight']}")),
+              _buildSectionCard("🌤️ ${Lang.t("growing_cond")}", [
+                _iconGridItem(Icons.wb_sunny, Lang.t("Temperature"), c['growing_conditions']['temperature']),
+                _iconGridItem(Icons.light_mode, Lang.t("Sunlight"), c['growing_conditions']['sunlight']),
+                _iconGridItem(Icons.water, Lang.t("Watering"), Lang.t(c['growing_conditions']['watering'])),
+                _iconGridItem(Icons.cloud_outlined, Lang.t("Humidity"), c['growing_conditions']['humidity']),
+              ], onListen: () => _listenToSection("growing_cond", "Temperature is ${c['growing_conditions']['temperature']} and Sunlight required is ${c['growing_conditions']['sunlight']}")),
 
-              _buildSectionCard("🌱 Soil Parameters", [
-                 _lineItem("Type", c['soil']['type']),
-                 _lineItem("pH Range", c['soil']['ph']),
-              ], onListen: () => _listenToSection("Soil Parameters", "Required soil type is ${c['soil']['type']} with a pH of ${c['soil']['ph']}")),
+              _buildSectionCard("🌱 ${Lang.t("soil_params")}", [
+                 _lineItem(Lang.t("Type"), Lang.t(c['soil']['type'])),
+                 _lineItem(Lang.t("pH Range"), c['soil']['ph']),
+              ], onListen: () => _listenToSection("soil_params", "Required soil type is ${c['soil']['type']} with a pH of ${c['soil']['ph']}")),
 
-              _buildSectionCard("📏 Spacing & Planting", [
+              _buildSectionCard("📏 ${Lang.t("spacing_planting")}", [
                  _buildSpacingVisual(c['spacing']['row_to_row'], c['spacing']['plant_to_plant']),
                  const SizedBox(height: 12),
                  Text(c['spacing']['note'], style: const TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: Colors.blueGrey)),
               ]),
 
-              _buildSectionCard("🧪 Fertilizer (NPK)", [
+              _buildSectionCard("🧪 ${Lang.t("fertilizer_npk")}", [
                  Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                     _npkDial("N", c['fertilizer']['N'], Colors.blue),
                     _npkDial("P", c['fertilizer']['P'], Colors.orange),
                     _npkDial("K", c['fertilizer']['K'], Colors.purple),
                  ]),
                  const SizedBox(height: 20),
-                 SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () {}, icon: const Icon(Icons.calculate), label: const Text("See in Fertilizer Calculator"))),
+                 SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () {}, icon: const Icon(Icons.calculate), label: Text(Lang.t("see_calc")))),
               ], onListen: () => _listenToSection("Fertilizer Requirements", "Nitrogen ${c['fertilizer']['N']}, Phosphorus ${c['fertilizer']['P']}, Potassium ${c['fertilizer']['K']} in ${c['fertilizer']['unit']}")),
 
-              _buildSectionCard("🤝 Crop Companions", [
+              _buildSectionCard("🤝 ${Lang.t("crop_companions")}", [
                  _companionList("✅ Good Companions", c['companions']['good'], Colors.green),
                  const SizedBox(height: 16),
                  _companionList("❌ Avoid (Bad)", c['companions']['bad'], Colors.red),
@@ -358,20 +359,20 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
                  Text("💡 Why? ${c['companions']['explanation']}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
               ]),
 
-              _buildSectionCard("🌾 Cultivation Info", [
-                 _iconGridItem(Icons.history, "Life Cycle", c['cultivation']['life_cycle']),
-                 _iconGridItem(Icons.grass, "Method", c['cultivation']['method']),
-                 _iconGridItem(Icons.group, "Labour", c['cultivation']['labour']),
-                 _iconGridItem(Icons.calendar_today, "Season", c['cultivation']['season']),
+              _buildSectionCard("🌾 ${Lang.t("cultivation_info")}", [
+                 _iconGridItem(Icons.history, Lang.t("life_cycle"), Lang.t(c['cultivation']['life_cycle'])),
+                 _iconGridItem(Icons.grass, Lang.t("method"), Lang.t(c['cultivation']['method'])),
+                 _iconGridItem(Icons.group, Lang.t("labour"), Lang.t(c['cultivation']['labour'])),
+                 _iconGridItem(Icons.calendar_today, Lang.t("season"), Lang.t(c['cultivation']['season'])),
               ]),
 
-              _buildSectionCard("🐛 Pests & Diseases", [
+              _buildSectionCard("🐛 ${Lang.t("pests_diseases_label")}", [
                  Wrap(spacing: 8, children: (c['pests_diseases'] as List).map((p) => Chip(label: Text(p), backgroundColor: Colors.red[50], side: BorderSide.none)).toList()),
                  const SizedBox(height: 12),
-                 SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DetectorScreen())), icon: const Icon(Icons.science), label: const Text("Open AI Disease Detector"), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800], foregroundColor: Colors.white))),
+                 SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DetectorScreen())), icon: const Icon(Icons.science), label: Text(Lang.t("open_detector")), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800], foregroundColor: Colors.white))),
               ]),
 
-              _buildSectionCard("📍 Region Suitability", [
+              _buildSectionCard("📍 ${Lang.t("region_suitability")}", [
                  Wrap(spacing: 8, children: (c['regions'] as List).map((r) => Chip(label: Text(r), backgroundColor: Colors.blue[50])).toList()),
               ]),
 
@@ -432,13 +433,13 @@ class _CropDetailScreenState extends State<CropDetailScreen> {
           ]),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text("Plant-to-Plant: $plant", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown)),
+            child: Text("${Lang.t("Plant-to-Plant")}: $plant", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown)),
           ),
           const Divider(height: 20),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
              Column(children: [const Icon(Icons.grass, color: Colors.green), Container(height: 20, width: 2, color: Colors.brown[200]), const Icon(Icons.grass, color: Colors.green)]),
              const SizedBox(width: 20),
-             Text("Row-to-Row: $row", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown)),
+             Text("${Lang.t("Row-to-Row")}: $row", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown)),
           ])
         ],
       ),

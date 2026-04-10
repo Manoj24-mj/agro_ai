@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:agro_ai_app/service/database_service.dart';
 import 'package:agro_ai_app/localization.dart';
+import 'package:agro_ai_app/screens/scan_detail_screen.dart';
 
 class UsageHistoryScreen extends StatefulWidget {
   const UsageHistoryScreen({super.key});
@@ -42,7 +43,7 @@ class _UsageHistoryScreenState extends State<UsageHistoryScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_sweep, color: Colors.white),
-            tooltip: "Clear all logs",
+            tooltip: "Clear Local Logs",
             onPressed: () {
                if (_history.isNotEmpty) _clearHistory();
             },
@@ -52,7 +53,7 @@ class _UsageHistoryScreenState extends State<UsageHistoryScreen> {
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
         : _history.isEmpty 
-            ? Center(child: Text(Lang.t("usage_history") + " " + "is empty"))
+            ? Center(child: Text(Lang.t("history_empty")))
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: _history.length,
@@ -71,18 +72,18 @@ class _UsageHistoryScreenState extends State<UsageHistoryScreen> {
                   }
                   
                   DateTime dt = DateTime.parse(item['timestamp']);
-                  String ampm = dt.hour >= 12 ? 'PM' : 'AM';
-                  int hr = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
-                  String timeStr = "${dt.day}/${dt.month}/${dt.year} - $hr:${dt.minute.toString().padLeft(2, '0')} $ampm";
-
+                  String timeStr = "${dt.day}/${dt.month}/${dt.year} - ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+                  
                   bool isChat = item['type'] == 'chat';
 
                   return _buildHistoryItem(
+                    context,
+                    item,
                     isChat ? Icons.chat_bubble_outline : icon, 
-                    isChat ? "Chat with AI" : (item['title'] ?? "Plant Scan"), 
+                    isChat ? Lang.t("chat_with_ai") : (item['title'] != null ? item['title'] : Lang.t("plant_scan")), 
                     timeStr, 
                     isChat ? Colors.blue : iconColor, 
-                    item['summary'] ?? "No summary available",
+                    item['summary'] ?? Lang.t("no_summary"),
                     isChat: isChat,
                   );
                 },
@@ -90,7 +91,7 @@ class _UsageHistoryScreenState extends State<UsageHistoryScreen> {
     );
   }
 
-  Widget _buildHistoryItem(IconData icon, String title, String time, Color color, String subtitle, {bool isChat = false}) {
+  Widget _buildHistoryItem(BuildContext context, Map<String, dynamic> item, IconData icon, String title, String time, Color color, String subtitle, {bool isChat = false}) {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
@@ -106,19 +107,18 @@ class _UsageHistoryScreenState extends State<UsageHistoryScreen> {
         ),
         title: Row(
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const Spacer(),
+            Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
             if (isChat) 
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(4)),
-                child: Text("CHAT", style: TextStyle(fontSize: 10, color: Colors.blue.shade700, fontWeight: FontWeight.bold)),
+                child: const Text("CHAT", style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
               )
             else
                Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(4)),
-                child: Text("SCAN", style: TextStyle(fontSize: 10, color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                child: const Text("SCAN", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
               ),
           ],
         ),
@@ -131,7 +131,14 @@ class _UsageHistoryScreenState extends State<UsageHistoryScreen> {
           ],
         ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-        onTap: () {}, 
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ScanDetailScreen(item: item),
+            ),
+          );
+        }, 
       ),
     );
   }

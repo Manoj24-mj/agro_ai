@@ -3,7 +3,9 @@ import 'dart:ui';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
+import 'language_selection_screen.dart';
 import 'country_selection_screen.dart';
+import 'package:agro_ai_app/localization.dart';
 
 class IntroAnimationScreen extends StatefulWidget {
   const IntroAnimationScreen({super.key});
@@ -52,7 +54,7 @@ class _IntroAnimationScreenState extends State<IntroAnimationScreen> with Ticker
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
+            pageBuilder: (context, animation, secondaryAnimation) => const LanguageSelectionScreen(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(
                 opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
@@ -170,7 +172,7 @@ class _IntroAnimationScreenState extends State<IntroAnimationScreen> with Ticker
                         animation: _pulseController,
                         builder: (context, child) {
                           return Text(
-                            "Agro AI Doctor",
+                            "Smart Kisan",
                             style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
@@ -188,7 +190,7 @@ class _IntroAnimationScreenState extends State<IntroAnimationScreen> with Ticker
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        "Smart 3D Diagnostics & AI Insights",
+                        Lang.t("slogan"),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,

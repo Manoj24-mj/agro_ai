@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:agro_ai_app/service/data_service.dart';
 import 'package:agro_ai_app/screens/disease_detail_screen.dart';
+import 'package:agro_ai_app/localization.dart';
 
 class DiseaseAlertScreen extends StatefulWidget {
   const DiseaseAlertScreen({super.key});
@@ -14,11 +15,25 @@ class _DiseaseAlertScreenState extends State<DiseaseAlertScreen> {
   String _filter = "All";
 
   @override
+  void initState() {
+    super.initState();
+    Lang().addListener(_onLangChanged);
+  }
+
+  void _onLangChanged() { if (mounted) setState(() {}); }
+
+  @override
+  void dispose() {
+    Lang().removeListener(_onLangChanged);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text("🚨 Disease Alerts"),
+        title: Text("🚨 ${Lang.t("disease_alerts_title")}"),
         backgroundColor: Colors.red[800],
         foregroundColor: Colors.white,
       ),
@@ -32,15 +47,15 @@ class _DiseaseAlertScreenState extends State<DiseaseAlertScreen> {
               children: [
                 const Icon(Icons.location_on, color: Colors.red),
                 const SizedBox(width: 12),
-                const Expanded(child: Text("Current Region Tracking: North / South India", style: TextStyle(fontWeight: FontWeight.bold))),
+                Expanded(child: Text("${Lang.t("region_tracking")}: North / South India", style: const TextStyle(fontWeight: FontWeight.bold))),
                 PopupMenuButton<String>(
                   onSelected: (v) => setState(() => _filter = v),
                   itemBuilder: (context) => ["All", "High", "Moderate", "Wheat", "Sugar"]
-                    .map((e) => PopupMenuItem(value: e, child: Text(e))).toList(),
+                    .map((e) => PopupMenuItem(value: e, child: Text(Lang.t(e)))).toList(),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(10)),
-                    child: Text(_filter, style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold)),
+                    child: Text(Lang.t(_filter), style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold)),
                   ),
                 )
               ],
@@ -74,9 +89,9 @@ class _DiseaseAlertScreenState extends State<DiseaseAlertScreen> {
               children: [
                 const Icon(Icons.notifications_active, color: Colors.white, size: 40),
                 const SizedBox(width: 16),
-                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text("Turn on Push Notifications", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text("Get instant alerts for your crops.", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(Lang.t("notifications_title"), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(Lang.t("notifications_subtitle"), style: const TextStyle(color: Colors.white70, fontSize: 12)),
                   ],
                 )),
                 Switch(value: true, onChanged: (v) {}, activeColor: Colors.white),
@@ -121,7 +136,7 @@ class _DiseaseAlertScreenState extends State<DiseaseAlertScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("${alert["severity"]} Severity", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text("${Lang.t(alert["severity"])} ${Lang.t("severity_label")}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                     Text(alert["date"], style: const TextStyle(color: Colors.white70, fontSize: 10)),
                   ],
                 ),
@@ -131,7 +146,7 @@ class _DiseaseAlertScreenState extends State<DiseaseAlertScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("CROP AFFECTED: ${alert["crop"]}", style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 14)),
+                    Text("${Lang.t("crop_affected")}: ${Lang.t(alert["crop"])}", style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 14)),
                     const SizedBox(height: 12),
                     Text(alert["message"], style: const TextStyle(color: Colors.blueGrey, fontSize: 15, fontWeight: FontWeight.w600, height: 1.5)),
                     const SizedBox(height: 20),
@@ -139,7 +154,7 @@ class _DiseaseAlertScreenState extends State<DiseaseAlertScreen> {
                        children: [
                           const Icon(Icons.info_outline, size: 16, color: Colors.red),
                           const SizedBox(width: 8),
-                          Text("ACTION REQUIRED: Contact Local Agro-Expert", style: TextStyle(color: Colors.red[800], fontSize: 11, fontWeight: FontWeight.bold)),
+                          Text("${Lang.t("action_required")}: ${Lang.t("contact_expert")}", style: TextStyle(color: Colors.red[800], fontSize: 11, fontWeight: FontWeight.bold)),
                        ],
                     )
                   ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:agro_ai_app/service/data_service.dart';
+import 'package:agro_ai_app/localization.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
@@ -11,7 +12,7 @@ class AnalyticsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text("📊 Farm Analytics"),
+        title: Text(Lang.t("analytics_title")),
         backgroundColor: Colors.blue[800],
         foregroundColor: Colors.white,
       ),
@@ -23,24 +24,24 @@ class AnalyticsScreen extends StatelessWidget {
             // 1. Overview Cards
             Row(
               children: [
-                _buildStatCard("Total Scans", analytics["totalScans"].toString(), Icons.camera_alt, Colors.blue),
+                _buildStatCard(Lang.t("total_scans"), analytics["totalScans"].toString(), Icons.camera_alt, Colors.blue),
                 const SizedBox(width: 16),
-                _buildStatCard("Active Users", analytics["activeUsers"].toString(), Icons.people, Colors.green),
+                _buildStatCard(Lang.t("active_users"), analytics["activeUsers"].toString(), Icons.people, Colors.green),
               ],
             ),
             const SizedBox(height: 24),
             
             // 2. High-Impact Metrics
-            _buildMetricBar("Most Detected", analytics["topDisease"], Icons.bug_report, Colors.red),
+            _buildMetricBar(Lang.t("most_detected"), analytics["topDisease"], Icons.bug_report, Colors.red),
             const SizedBox(height: 16),
-            _buildMetricBar("Dislike Rate", analytics["dislikeRate"], Icons.thumb_down, Colors.orange),
+            _buildMetricBar(Lang.t("dislike_rate"), analytics["dislikeRate"], Icons.thumb_down, Colors.orange),
             const SizedBox(height: 16),
-            _buildMetricBar("Alert Reach", analytics["alertReach"], Icons.rss_feed, Colors.purple),
+            _buildMetricBar(Lang.t("alert_reach"), analytics["alertReach"], Icons.rss_feed, Colors.purple),
             
             const SizedBox(height: 32),
             
             // 3. Trends Section
-            const Text("Regional Pest Trends", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(Lang.t("regional_trends"), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _buildTrendItem("North India", "Wheat Rust Increasing (High)", Colors.red),
             _buildTrendItem("South India", "Paddy Blast Stable (Moderate)", Colors.orange),
@@ -52,7 +53,7 @@ class AnalyticsScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () {},
                 icon: const Icon(Icons.download),
-                label: const Text("Download Full Report (PDF)"),
+                label: Text(Lang.t("down_report")),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[800],
                   foregroundColor: Colors.white,

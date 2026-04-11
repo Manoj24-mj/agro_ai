@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' as io;
+import 'package:flutter/foundation.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,6 +22,8 @@ import 'crops_module_screen.dart';
 import 'disease_alert_screen.dart';
 import 'tips_screen.dart';
 import 'analytics_screen.dart'; 
+import 'monitoring_screen.dart';
+import 'ai_alerts_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -41,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String userName = "Smart Kisan User";
   String userPhone = "+91 9876543210";
   String farmSpecs = "Wheat & Corn • 15 Acres • Expert";
-  File? _profileImage;
+  dynamic _profileImage; // Using dynamic to avoid File vs XFile issues on web
   DateTime? _lastRefreshTime;
 
   Future<void> _pickImage() async {
@@ -49,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        _profileImage = File(pickedFile.path);
+        _profileImage = pickedFile.path;
       });
     }
   }
@@ -258,7 +261,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   CircleAvatar(
                     radius: 50, 
                     backgroundColor: Colors.green.shade100, 
-                    backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
+                    backgroundImage: _profileImage != null 
+                      ? (kIsWeb ? NetworkImage(_profileImage) : FileImage(io.File(_profileImage)) as ImageProvider)
+                      : null,
                     child: _profileImage == null ? Icon(Icons.person, size: 60, color: Colors.green.shade800) : null,
                   ),
                   Positioned(
@@ -470,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               animation: _vortexController,
               builder: (context, child) {
                 return Container(
-                  height: 220,
+                  height: 160,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(35),
@@ -488,81 +493,62 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20, spreadRadius: 2),
                     ],
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Transform.rotate(
-                        angle: -_vortexRotation.value * 2,
-                        child: Container(
-                          height: 180,
-                          width: 180,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
-                          ),
-                        ),
-                      ),
-                      Transform.rotate(
-                        angle: _vortexRotation.value * 1.5,
-                        child: Container(
-                          height: 120,
-                          width: 120,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
-                          ),
-                        ),
-                      ),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(35),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                          child: Container(
-                            alignment: Alignment.center,
-                            color: Colors.white.withOpacity(0.1),
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                _buildDashboardButton(
-                                  context: context,
-                                  title: Lang.t("detector_btn"),
-                                  icon: Icons.camera_alt_outlined,
-                                  color: Colors.greenAccent.shade100,
-                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DetectorScreen())),
-                                  pulseValue: _vortexRotation.value,
-                                ),
-                                _buildDashboardButton(
-                                  context: context,
-                                  title: Lang.t("history_btn"),
-                                  icon: Icons.history,
-                                  color: Colors.purpleAccent.shade100,
-                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const UsageHistoryScreen())),
-                                  pulseValue: _vortexRotation.value + 0.5,
-                                ),
-                                _buildDashboardButton(
-                                  context: context,
-                                  title: Lang.t("saved_btn"),
-                                  icon: Icons.bookmark_border,
-                                  color: Colors.blueAccent.shade100,
-                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedScreen())),
-                                  pulseValue: _vortexRotation.value + 1.0,
-                                ),
-                                _buildDashboardButton(
-                                  context: context,
-                                  title: Lang.t("chat_btn"),
-                                  icon: Icons.auto_awesome,
-                                  color: Colors.amberAccent.shade100,
-                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatbotScreen())),
-                                  pulseValue: _vortexRotation.value + 2.0,
-                                ),
-                              ],
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(35),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                      child: Container(
+                        alignment: Alignment.center,
+                        color: Colors.white.withOpacity(0.1),
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _buildDashboardButton(
+                              context: context,
+                              title: Lang.t("detector_btn"),
+                              icon: Icons.camera_alt_outlined,
+                              color: Colors.greenAccent.shade100,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DetectorScreen())),
+                              pulseValue: _vortexRotation.value,
                             ),
-                          ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: Lang.t("history_btn"),
+                              icon: Icons.history,
+                              color: Colors.purpleAccent.shade100,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const UsageHistoryScreen())),
+                              pulseValue: _vortexRotation.value + 0.5,
+                            ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: Lang.t("saved_btn"),
+                              icon: Icons.bookmark_border,
+                              color: Colors.blueAccent.shade100,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedScreen())),
+                              pulseValue: _vortexRotation.value + 1.0,
+                            ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: Lang.t("chat_btn"),
+                              icon: Icons.auto_awesome,
+                              color: Colors.amberAccent.shade100,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatbotScreen())),
+                              pulseValue: _vortexRotation.value + 1.5,
+                            ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: Lang.t("monitoring_btn"),
+                              icon: Icons.monitor_heart_outlined,
+                              color: Colors.cyanAccent.shade100,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MonitoringScreen())),
+                              pulseValue: _vortexRotation.value + 2.0,
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 );
               }
@@ -632,7 +618,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   icon: Icons.science_outlined,
                                   color: Colors.orangeAccent.shade100,
                                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Fertilizer"))),
-                                  pulseValue: _vortexRotation.value + 0.3, // Still bounces softly
+                                  pulseValue: _vortexRotation.value,
                                 ),
                                 _buildDashboardButton(
                                   context: context,
@@ -640,7 +626,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   icon: Icons.pest_control,
                                   color: Colors.redAccent.shade100,
                                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Pesticide"))),
-                                  pulseValue: _vortexRotation.value + 0.8,
+                                  pulseValue: _vortexRotation.value + 0.5,
                                 ),
                                 _buildDashboardButton(
                                   context: context,
@@ -648,7 +634,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   icon: Icons.agriculture,
                                   color: Colors.lightGreenAccent.shade100,
                                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CalculatorScreen(type: "Farming"))),
-                                  pulseValue: _vortexRotation.value + 1.3,
+                                  pulseValue: _vortexRotation.value + 1.0,
                                 ),
                                 _buildDashboardButton(
                                   context: context,
@@ -656,7 +642,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   icon: Icons.currency_exchange,
                                   color: Colors.greenAccent.shade100,
                                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CropPriceScreen())),
-                                  pulseValue: _vortexRotation.value + 1.8,
+                                  pulseValue: _vortexRotation.value + 1.5,
+                                ),
+                                _buildDashboardButton(
+                                  context: context,
+                                  title: Lang.t("ai_alerts"),
+                                  icon: Icons.notification_important_outlined,
+                                  color: Colors.redAccent.shade100,
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AiAlertsScreen())),
+                                  pulseValue: _vortexRotation.value + 2.0,
                                 ),
                               ],
                             ),

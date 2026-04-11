@@ -291,6 +291,14 @@ file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_markdown-0
 file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_markdown-0.7.7+1/lib/src/widget.dart
 file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_tts-3.8.5/lib/flutter_tts.dart
 file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_tts-3.8.5/lib/flutter_tts_web.dart
+file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geocoding-2.2.2/lib/geocoding.dart
+file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geocoding_platform_interface-3.2.0/lib/geocoding_platform_interface.dart
+file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geocoding_platform_interface-3.2.0/lib/src/errors/errors.dart
+file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geocoding_platform_interface-3.2.0/lib/src/errors/no_result_found_exception.dart
+file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geocoding_platform_interface-3.2.0/lib/src/geocoding_platform_interface.dart
+file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geocoding_platform_interface-3.2.0/lib/src/models/location.dart
+file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geocoding_platform_interface-3.2.0/lib/src/models/models.dart
+file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geocoding_platform_interface-3.2.0/lib/src/models/placemark.dart
 file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geolocator-10.1.1/lib/geolocator.dart
 file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geolocator_android-4.6.2/lib/geolocator_android.dart
 file:///C:/Users/suhas/AppData/Local/Pub/Cache/hosted/pub.dev/geolocator_android-4.6.2/lib/src/geolocator_android.dart
@@ -1322,6 +1330,7 @@ file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/.dart_tool/flutter_
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/firebase_options.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/localization.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/main.dart
+file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/ai_alerts_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/analytics_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/calculator_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/chatbot_screen.dart
@@ -1330,6 +1339,7 @@ file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/country
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/crop_price_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/crops_module_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/detector_screen.dart
+file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/disease_alert_map.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/disease_alert_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/disease_detail_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/history_screen.dart
@@ -1338,6 +1348,8 @@ file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/intro_a
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/language_selection_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/login_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/market_screen.dart
+file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/monitoring_detail_screens.dart
+file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/monitoring_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/onboarding_manual_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/saved_screen.dart
 file:///C:/Users/suhas/OneDrive/Desktop/plant_ai/agro_ai_app/lib/screens/scan_detail_screen.dart

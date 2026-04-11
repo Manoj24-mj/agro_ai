@@ -1,6 +1,4 @@
-2026/04/08-20:11:59.326 2e04 Creating DB C:\Users\suhas\AppData\Local\Temp\flutter_tools.85aab122\flutter_tools_chrome_device.58a3a3d9\Default\IndexedDB\http_localhost_53796.indexeddb.leveldb since it was missing.
-2026/04/08-20:11:59.333 2e04 Reusing MANIFEST C:\Users\suhas\AppData\Local\Temp\flutter_tools.85aab122\flutter_tools_chrome_device.58a3a3d9\Default\IndexedDB\http_localhost_53796.indexeddb.leveldb/MANIFEST-000001
-2026/04/08-20:11:59.347 6a5c Level-0 table #5: started
-2026/04/08-20:11:59.351 6a5c Level-0 table #5: 1284 bytes OK
-2026/04/08-20:11:59.354 6a5c Delete type=0 #3
-2026/04/08-20:11:59.355 2e04 Manual compaction at level-0 from '\x00\x01\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x02\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/08-20:17:25.027 6a5c Reusing MANIFEST C:\Users\suhas\AppData\Local\Temp\flutter_tools.85aab122\flutter_tools_chrome_device.58a3a3d9\Default\IndexedDB\http_localhost_53796.indexeddb.leveldb/MANIFEST-000001
+2026/04/08-20:17:25.027 6a5c Recovering log #4
+2026/04/08-20:17:25.027 6a5c Reusing old log C:\Users\suhas\AppData\Local\Temp\flutter_tools.85aab122\flutter_tools_chrome_device.58a3a3d9\Default\IndexedDB\http_localhost_53796.indexeddb.leveldb/000004.log 
+2026/04/08-20:17:25.049 6a5c Manual compaction at level-0 from '\x00\x04\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x05\x00\x00\x00' @ 0 : 0; will stop at (end)

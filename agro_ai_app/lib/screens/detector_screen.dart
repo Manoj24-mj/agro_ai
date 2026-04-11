@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:io' as io;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:agro_ai_app/service/voice_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -646,7 +647,7 @@ class _DetectorBubble extends StatelessWidget {
                           decoration: BoxDecoration(border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5)),
                           child: kIsWeb 
                               ? Image.network(imagePath!, fit: BoxFit.cover, height: 120, width: 120)
-                              : Image.file(File(imagePath!), fit: BoxFit.cover, height: 120, width: 120),
+                              : Image.file(io.File(imagePath!), fit: BoxFit.cover, height: 120, width: 120),
                         ),
                       ),
                     ),

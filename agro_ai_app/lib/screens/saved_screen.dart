@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:io' as io;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -88,10 +88,11 @@ $rawText
         }
       } else {
         final dir = await getApplicationDocumentsDirectory();
-        final file = File('${dir.path}/$filename');
+        final filePath = '${dir.path}/$filename';
+        final file = io.File(filePath);
         await file.writeAsString(formattedText);
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${Lang.t("stored_locally_msg")} ${file.path}")));
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${Lang.t("stored_locally_msg")} $filePath")));
         }
       }
     } catch (e) {

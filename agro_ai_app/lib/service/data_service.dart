@@ -581,6 +581,34 @@ class AgroDataService {
         "warning": "Ensure complete coverage of the canopy for best results."
       },
       "community_q": 8
+    },
+    {
+      "id": "tomato_blight",
+      "name": "Late Blight (Tomato)",
+      "crop": "Tomato",
+      "image": "assets/images/tomato.png",
+      "symptoms": [
+        "Dark, water-soaked spots on leaves.",
+        "White fungal growth on the underside of leaves.",
+        "Brown, greasy-looking lesions on stems and fruit."
+      ],
+      "prevention": [
+        "Avoid overhead watering; use drip irrigation.",
+        "Space plants adequately for good airflow.",
+        "Remove and destroy infected plant debris."
+      ],
+      "organic_control": {
+        "agent": "Copper-based Fungicides (Organic Approved)",
+        "method": "Spray preventatively during high humidity.",
+        "notes": "Effective only as a preventative measure, not a cure."
+      },
+      "chemical_control": {
+        "product": "Mancozeb 75% WP",
+        "dosage": "2.5g per liter of water",
+        "active": "Mancozeb",
+        "warning": "Observe a pre-harvest interval of at least 5 days."
+      },
+      "community_q": 15
     }
   ];
 

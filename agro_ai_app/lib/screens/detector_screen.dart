@@ -16,6 +16,8 @@ import 'package:agro_ai_app/service/database_service.dart';
 import 'package:agro_ai_app/service/data_service.dart';
 import 'package:agro_ai_app/service/firebase_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:agro_ai_app/service/tflite_service.dart';
 
 class DetectorScreen extends StatefulWidget {
   const DetectorScreen({super.key});
@@ -145,6 +147,36 @@ class _DetectorScreenState extends State<DetectorScreen> {
         basePrompt = "The previous result was flagged as incorrect. Please PERFORM A DEEP RE-ANALYSIS. Look for subtle symptoms, cross-reference with similar diseases, and provide an extremely cautious and detailed second opinion. " + basePrompt;
       }
 
+      final connectivityResult = await (Connectivity().checkConnectivity());
+      // In connectivity_plus > 5.0, checkConnectivity returns List<ConnectivityResult>
+      bool isOnline = true;
+      if (connectivityResult is List) {
+         isOnline = !connectivityResult.contains(ConnectivityResult.none);
+      } else {
+         isOnline = connectivityResult != ConnectivityResult.none;
+      }
+
+      if (!isOnline) {
+          if (image != null) {
+              final result = await TFLiteService.predict(image.path);
+              setState(() {
+                 _messages.removeLast();
+                 _messages.add(DetectorMessage(message: result ?? "Offline analysis failed.", isUser: false, originalImage: image));
+              });
+              if (_isVoiceEnabled) {
+                _voiceService.speak(result ?? "Offline analysis failed.");
+              }
+              _scrollToBottom();
+          } else {
+              setState(() {
+                 _messages.removeLast();
+                 _messages.add(DetectorMessage(message: "📶 **Offline Mode**: I cannot process text queries without internet. Please upload a plant image to use the offline AI model.", isUser: false));
+              });
+              _scrollToBottom();
+          }
+          return;
+      }
+
       final weatherData = await weatherFuture;
       final imageBytes = await imageBytesFuture;
 
@@ -192,10 +224,10 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
 - [Step 2]
 
 **2. Eradication (Pesticides & Dosage):**
-- [Chemical/Pesticide Name] - [Exact Dosage]
+> 🚨 **CRITICAL TREATMENT:** [Chemical/Pesticide Name] - [Exact Dosage]
 
 **3. Recovery (Best Fertilizers):**
-- [Fertilizer Name/Type] - [Exact Dosage]
+> 💊 **RECOMMENDED FERTILIZER:** [Fertilizer Name/Type] - [Exact Dosage]
 
 **4. Future Prevention:**
 - [How to prevent this from returning]

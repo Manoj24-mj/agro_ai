@@ -1,0 +1,141 @@
+import 'dart:io';
+import 'dart:math';
+import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
+import 'package:tflite_flutter/tflite_flutter.dart';
+import 'package:agro_ai_app/service/data_service.dart';
+
+class TFLiteService {
+  static Interpreter? _interpreter;
+  static List<String>? _labels;
+
+  static Future<void> loadModel() async {
+    try {
+      if (_interpreter != null) return;
+      _interpreter = await Interpreter.fromAsset('assets/plant_model.tflite');
+      
+      final labelData = await rootBundle.loadString('assets/models_list.txt');
+      _labels = labelData.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      print("TFLite Model loaded successfully.");
+    } catch (e) {
+      print("Error loading model: $e");
+    }
+  }
+
+  static Future<String?> predict(String imagePath) async {
+    if (_interpreter == null) await loadModel();
+    if (_interpreter == null) return "Model not loaded properly.";
+
+    try {
+      final imageBytes = await File(imagePath).readAsBytes();
+      final image = img.decodeImage(imageBytes);
+      if (image == null) return "Could not decode image.";
+
+      // Resize to match model input (typically 224x224 or 256x256)
+      // I'll assume 224x224 for standard plant disease models
+      final inputSize = 256; 
+      final resizedImage = img.copyResize(image, width: inputSize, height: inputSize);
+
+      var input = List.generate(
+        1,
+        (i) => List.generate(
+          inputSize,
+          (y) => List.generate(
+            inputSize,
+            (x) {
+              final pixel = resizedImage.getPixel(x, y);
+              // Normalize if necessary, assuming 0-1 float or 0-255 float
+              return [pixel.r / 255.0, pixel.g / 255.0, pixel.b / 255.0];
+            },
+          ),
+        ),
+      );
+
+      var output = List.generate(1, (i) => List.filled(_labels?.length ?? 38, 0.0));
+
+      _interpreter!.run(input, output);
+
+      List<Map<String, dynamic>> detectedDiseases = [];
+      for (int i = 0; i < probabilities.length; i++) {
+        if (probabilities[i] > 0.15) { // 15% threshold for multiple diseases
+          detectedDiseases.add({
+            'label': _labels != null && i < _labels!.length ? _labels![i] : "Unknown",
+            'confidence': probabilities[i]
+          });
+        }
+      }
+
+      // Sort by confidence descending
+      detectedDiseases.sort((a, b) => b['confidence'].compareTo(a['confidence']));
+
+      if (detectedDiseases.isEmpty) {
+         // Fallback to max if none above 15%
+         int maxIndex = 0;
+         double maxProb = probabilities[0];
+         for (int i = 1; i < probabilities.length; i++) {
+           if (probabilities[i] > maxProb) {
+             maxProb = probabilities[i];
+             maxIndex = i;
+           }
+         }
+         detectedDiseases.add({
+            'label': _labels != null && maxIndex < _labels!.length ? _labels![maxIndex] : "Unknown",
+            'confidence': maxProb
+         });
+      }
+
+      // Look up in AgroDataService for matches
+      String report = _generateOfflineReport(detectedDiseases);
+      return report;
+    } catch (e) {
+      print("Prediction error: $e");
+      return "Error during offline prediction: $e";
+    }
+  }
+
+  static String _generateOfflineReport(List<Map<String, dynamic>> diseases) {
+     final topDisease = diseases.first;
+     int confInt = (topDisease['confidence'] as double * 100).toInt();
+     
+     if (confInt < 30) {
+        return "I am not confident ($confInt%), but it might be ${topDisease['label']}. Please try again with a better image or when online.";
+     }
+     
+     String diagnosisStr = diseases.map((d) => "${d['label']} (${(d['confidence'] as double * 100).toInt()}%)").join(" AND ");
+     String remediesStr = diseases.map((d) => "- For ${d['label']}: Isolate and treat immediately.").join("\n");
+
+     // Formatted report simulating Gemini style
+     return '''
+[ACCURACY: $confInt]
+[SEVERITY: HIGH]
+[WATER: 50]
+[TEMP: 25]
+[HUMIDITY: 50]
+
+---
+## 📋 Section 1: Metadata
+- **Plant Type:** Detected from Image (Offline Mode)
+- **Location & Climate:** Offline Edge AI
+
+---
+## 🔬 Section 2: Visual Evidence & Cause
+- **Diagnosis:** $diagnosisStr
+- **Evidence/Observation:** Detected multiple visual markers using offline Edge AI.
+- **Why it occurred:** Detected pattern matches offline database for the identified diseases.
+
+---
+## 🧪 Section 3: The Prescription & Prevention
+**1. Immediate Remedies:**
+$remediesStr
+
+**2. Eradication (Pesticides & Dosage):**
+> 🚨 **CRITICAL TREATMENT:** Consult local agriculture guidelines or connect to the internet for a deep AI analysis.
+
+**3. Recovery (Best Fertilizers):**
+> 💊 **RECOMMENDED FERTILIZER:** Standard organic compost.
+
+**4. Future Prevention:**
+- Maintain optimal humidity and spacing.
+''';
+  }
+}

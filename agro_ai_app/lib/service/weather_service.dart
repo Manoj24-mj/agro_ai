@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:agro_ai_app/service/firebase_service.dart';
 
 class WeatherService {
   // Open-Meteo is a professional-grade API that requires NO API KEY
@@ -29,6 +30,7 @@ class WeatherService {
   static Future<Map<String, dynamic>> getWeatherAuto({bool forceRefresh = false}) async {
     if (!forceRefresh && _lastAutoWeather != null && _lastAutoFetch != null && 
         DateTime.now().difference(_lastAutoFetch!) < const Duration(minutes: 15)) {
+      _logWeatherToFirestore(0, 0, _lastAutoWeather!["name"] ?? "Unknown", _lastAutoWeather!);
       return _lastAutoWeather!;
     }
     
@@ -191,6 +193,7 @@ class WeatherService {
       print("Returning cached weather for $cityName");
       var cachedData = Map<String, dynamic>.from(_cache[cacheKey]);
       cachedData["name"] = cityName; // Update name in case it's different query
+      _logWeatherToFirestore(lat, lon, cityName, cachedData);
       return cachedData;
     }
 
@@ -247,7 +250,9 @@ class WeatherService {
       
       // If error occurs, try to return LAST KNOWN CACHED DATA as a fallback
       if (_cache.containsKey(cacheKey)) {
-        return _cache[cacheKey]!;
+        var cachedData = Map<String, dynamic>.from(_cache[cacheKey]!);
+        _logWeatherToFirestore(lat, lon, cityName, cachedData);
+        return cachedData;
       }
       
       return {"error": "Weather service returned ${weatherRes.statusCode}. Try again in 1 min."};
@@ -278,19 +283,16 @@ class WeatherService {
   static Future<void> _logWeatherToFirestore(double lat, double lon, String city, Map<String, dynamic> data) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final phone = prefs.getString('userPhone') ?? "unknown";
+      final phone = prefs.getString('userPhone');
       
-      await FirebaseFirestore.instance.collection("weather_history").add({
-        "city": city,
-        "lat": lat,
-        "lon": lon,
-        "temp": data["main"]["temp"],
-        "humidity": data["main"]["humidity"],
-        "aqi": data["aqi"],
-        "uvi": data["uvi"],
-        "phone": phone,
-        "timestamp": FieldValue.serverTimestamp(),
-      });
+      if (phone != null) {
+        await FirebaseService.saveWeatherHistory(
+          phone: phone,
+          location: city,
+          condition: data["weather"][0]["main"] ?? "Unknown",
+          temperature: (data["main"]["temp"] ?? 0).toDouble(),
+        );
+      }
     } catch (e) {
       print("Error logging weather: $e");
     }

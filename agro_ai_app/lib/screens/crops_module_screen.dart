@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:agro_ai_app/localization.dart';
 import 'package:agro_ai_app/service/data_service.dart';
 import 'package:agro_ai_app/service/voice_service.dart';
+import 'package:agro_ai_app/service/firebase_service.dart';
 import 'package:agro_ai_app/screens/detector_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -50,6 +51,20 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
     });
   }
 
+  Future<void> _onSearchSubmit(String query) async {
+    if (query.trim().isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      final phone = prefs.getString('userPhone');
+      if (phone != null) {
+        await FirebaseService.saveSearchHistory(
+          phone: phone,
+          query: query.trim(),
+          category: "Crops Dictionary",
+        );
+      }
+    }
+  }
+
   void _selectCategory(String cat) {
     setState(() {
       _activeCategory = cat;
@@ -81,6 +96,7 @@ class _CropsModuleScreenState extends State<CropsModuleScreen> {
                   TextField(
                     controller: _searchController,
                     onChanged: _onSearch,
+                    onSubmitted: _onSearchSubmit,
                     decoration: InputDecoration(
                       filled: true, fillColor: Colors.white, prefixIcon: const Icon(Icons.search, color: Colors.green),
                       hintText: Lang.t("search_hint_crops"),

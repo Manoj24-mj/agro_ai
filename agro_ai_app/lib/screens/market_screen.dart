@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:agro_ai_app/service/market_service.dart';
 import 'package:agro_ai_app/widgets/searchable_picker.dart';
 import 'package:agro_ai_app/localization.dart';
+import 'package:agro_ai_app/service/firebase_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class MarketScreen extends StatefulWidget {
@@ -98,6 +100,19 @@ class _MarketScreenState extends State<MarketScreen> {
                           setState(() {
                             _searchQuery = val;
                           });
+                        },
+                        onSubmitted: (val) async {
+                          if (val.trim().isNotEmpty) {
+                            final prefs = await SharedPreferences.getInstance();
+                            final phone = prefs.getString('userPhone');
+                            if (phone != null) {
+                              await FirebaseService.saveSearchHistory(
+                                phone: phone,
+                                query: val.trim(),
+                                category: "Marketplace",
+                              );
+                            }
+                          }
                         },
                         decoration: InputDecoration(
                           icon: const Icon(Icons.search, color: Colors.green),

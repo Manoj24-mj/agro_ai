@@ -54,6 +54,8 @@ class TFLiteService {
       var output = List.generate(1, (i) => List.filled(_labels?.length ?? 38, 0.0));
 
       _interpreter!.run(input, output);
+      
+      List<double> probabilities = List<double>.from(output[0]);
 
       List<Map<String, dynamic>> detectedDiseases = [];
       for (int i = 0; i < probabilities.length; i++) {
@@ -101,8 +103,54 @@ class TFLiteService {
         return "I am not confident ($confInt%), but it might be ${topDisease['label']}. Please try again with a better image or when online.";
      }
      
-     String diagnosisStr = diseases.map((d) => "${d['label']} (${(d['confidence'] as double * 100).toInt()}%)").join(" AND ");
-     String remediesStr = diseases.map((d) => "- For ${d['label']}: Isolate and treat immediately.").join("\n");
+     bool isHealthy = topDisease['label'].toLowerCase().contains('healthy');
+     bool isUnknown = topDisease['label'].toLowerCase().contains('unknown');
+
+     if (isUnknown) {
+        return "I could not identify the plant or disease offline. Please connect to the internet for a deep scan.";
+     }
+
+     if (isHealthy) {
+       return '''
+[ACCURACY: $confInt]
+[SEVERITY: LOW]
+[WATER: 50]
+[TEMP: 25]
+[HUMIDITY: 50]
+
+---
+## 📋 Section 1: Metadata
+> 🌱 **Plant Type:** Detected from Image (Offline Mode)
+- **Location & Climate:** Offline Edge AI
+
+---
+## 🔬 Section 2: Visual Evidence & Cause
+> 🦠 **Diagnosis:** ${topDisease['label']}
+- **Evidence/Observation:** Plant appears vigorous and free of major diseases.
+> ⚠️ **Why it occurred:** Excellent care and suitable environmental conditions.
+
+---
+## 🧪 Section 3: The Prescription & Prevention
+**1. Immediate Remedies:**
+- Continue current care routine.
+
+**2. Eradication (Pesticides & Dosage):**
+> 🚨 **CRITICAL TREATMENT:** None required.
+
+**3. Recovery (Best Fertilizers):**
+> 💊 **RECOMMENDED FERTILIZER:** Standard organic compost to maintain health.
+
+**4. Future Prevention:**
+- Maintain optimal humidity and spacing.
+''';
+     }
+
+     // Only join non-healthy/non-unknown diseases
+     final actualDiseases = diseases.where((d) => !d['label'].toLowerCase().contains('healthy') && !d['label'].toLowerCase().contains('unknown')).toList();
+     if (actualDiseases.isEmpty) actualDiseases.add(topDisease); // Fallback
+
+     String diagnosisStr = actualDiseases.map((d) => "${d['label']} (${(d['confidence'] as double * 100).toInt()}%)").join(" AND ");
+     String remediesStr = actualDiseases.map((d) => "- For ${d['label']}: Isolate and treat immediately.").join("\n");
 
      // Formatted report simulating Gemini style
      return '''
@@ -114,14 +162,14 @@ class TFLiteService {
 
 ---
 ## 📋 Section 1: Metadata
-- **Plant Type:** Detected from Image (Offline Mode)
+> 🌱 **Plant Type:** Detected from Image (Offline Mode)
 - **Location & Climate:** Offline Edge AI
 
 ---
 ## 🔬 Section 2: Visual Evidence & Cause
-- **Diagnosis:** $diagnosisStr
+> 🦠 **Diagnosis:** $diagnosisStr
 - **Evidence/Observation:** Detected multiple visual markers using offline Edge AI.
-- **Why it occurred:** Detected pattern matches offline database for the identified diseases.
+> ⚠️ **Why it occurred:** Detected pattern matches offline database for the identified diseases.
 
 ---
 ## 🧪 Section 3: The Prescription & Prevention

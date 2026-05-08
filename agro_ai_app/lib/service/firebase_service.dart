@@ -67,16 +67,49 @@ class FirebaseService {
     required String reply,
   }) async {
     try {
-      // Directing chatbot insights to 'scans' collection so they appear in 'Saved' history
-      await _db.collection("users").doc(phone).collection("scans").add({
-        "title": "Smart Kisan Advice",
+      await _db.collection("users").doc(phone).collection("chats").add({
         "query": message,
-        "result": reply,
-        "severity": "NORMAL",
+        "reply": reply,
         "timestamp": FieldValue.serverTimestamp(),
       });
     } catch (e) {
       print("Error saving Smart Kisan chat: $e");
+    }
+  }
+
+  /// Saves search history to Firestore.
+  static Future<void> saveSearchHistory({
+    required String phone,
+    required String query,
+    required String category,
+  }) async {
+    try {
+      await _db.collection("users").doc(phone).collection("searches").add({
+        "query": query,
+        "category": category,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print("Error saving search history: $e");
+    }
+  }
+
+  /// Saves weather check history to Firestore.
+  static Future<void> saveWeatherHistory({
+    required String phone,
+    required String location,
+    required String condition,
+    required double temperature,
+  }) async {
+    try {
+      await _db.collection("users").doc(phone).collection("weather").add({
+        "location": location,
+        "condition": condition,
+        "temperature": temperature,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print("Error saving weather history: $e");
     }
   }
 
@@ -98,5 +131,38 @@ class FirebaseService {
         .collection("chats")
         .orderBy("timestamp", descending: true)
         .snapshots();
+  }
+
+  /// Fetches the search history for a specific user.
+  static Stream<QuerySnapshot> getUserSearchesStream(String phone) {
+    return _db
+        .collection("users")
+        .doc(phone)
+        .collection("searches")
+        .orderBy("timestamp", descending: true)
+        .snapshots();
+  }
+
+  /// Fetches the weather history for a specific user.
+  static Stream<QuerySnapshot> getUserWeatherStream(String phone) {
+    return _db
+        .collection("users")
+        .doc(phone)
+        .collection("weather")
+        .orderBy("timestamp", descending: true)
+        .snapshots();
+  }
+
+  /// Deletes a specific history item from Firestore.
+  static Future<void> deleteHistoryItem({
+    required String phone,
+    required String collectionName,
+    required String docId,
+  }) async {
+    try {
+      await _db.collection("users").doc(phone).collection(collectionName).doc(docId).delete();
+    } catch (e) {
+      print("Error deleting history item: $e");
+    }
   }
 }

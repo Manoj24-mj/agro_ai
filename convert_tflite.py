@@ -1,12 +1,20 @@
 import tensorflow as tf
 
-# Convert the model
+# Load the existing Keras model
 model = tf.keras.models.load_model('plant_model.h5')
+
+# Create the converter
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
+
+# Apply optimizations (Dynamic range quantization)
+# This reduces the model size and speeds up inference on mobile devices
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+
+# Convert the model
 tflite_model = converter.convert()
 
-# Save the model
+# Save the optimized model
 with open('plant_model.tflite', 'wb') as f:
     f.write(tflite_model)
 
-print("Model successfully converted to plant_model.tflite")
+print("Optimized model successfully converted to plant_model.tflite")

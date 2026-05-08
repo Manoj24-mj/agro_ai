@@ -3,12 +3,13 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:agro_ai_app/localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:universal_html/html.dart' as html;
-
+import 'package:audioplayers/audioplayers.dart';
 class VoiceService {
   static bool isMaleVoice = false;
 
   SpeechToText speech = SpeechToText();
   FlutterTts tts = FlutterTts();
+  final AudioPlayer _audioPlayer = AudioPlayer();
   List<dynamic>? _voices;
 
   Future<void> init() async {
@@ -49,12 +50,15 @@ class VoiceService {
   
   List<String> _chunkText(String text, int maxLength) {
     List<String> chunks = [];
-    List<String> words = text.split(' ');
+    // Split by any whitespace (spaces, newlines, tabs)
+    List<String> words = text.split(RegExp(r'\s+'));
     String currentChunk = "";
     
     for (String word in words) {
       if ((currentChunk.length + word.length + 1) > maxLength) {
-        chunks.add(currentChunk.trim());
+        if (currentChunk.trim().isNotEmpty) {
+           chunks.add(currentChunk.trim());
+        }
         currentChunk = word + " ";
       } else {
         currentChunk += word + " ";
@@ -69,42 +73,54 @@ class VoiceService {
   Future<void> speak(String text) async {
     String targetLangCode = Lang.lang.split('_')[0].toLowerCase();
 
-    // UNCONDITIONAL Web Fallback for Indian Languages
-    // Bypasses flutter_tts entirely for these languages on Chrome because 
-    // native Web TTS engines often report they have the voice but play silence.
-    if (kIsWeb && ['kn', 'hi', 'te', 'ta', 'mr', 'gu', 'ml', 'pa', 'bn'].contains(targetLangCode)) {
+    // UNCONDITIONAL Fallback for Indian Languages
+    // Bypasses flutter_tts entirely for these languages because 
+    // native Web TTS engines and Android TTS often report they have the voice but play silence or are missing Kannada.
+    if (['kn', 'hi', 'te', 'ta', 'mr', 'gu', 'ml', 'pa', 'bn'].contains(targetLangCode)) {
        try {
-           print("Using HTML5 Audio bypass for Web TTS: $targetLangCode");
-           List<String> chunks = _chunkText(text, 150);
+           print("Using Google Translate Audio bypass for TTS: $targetLangCode");
+           // Google Translate TTS is strict on length. Use 100 chars to avoid HTTP 400
+           List<String> chunks = _chunkText(text, 100);
            for (String chunk in chunks) {
               if (chunk.trim().isEmpty) continue;
-              // Use client=gtx and translate.googleapis.com which is significantly more stable for cross-origin audio
               String url = 'https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=$targetLangCode&q=${Uri.encodeComponent(chunk)}';
-              final audio = html.AudioElement(url);
               
-              bool hasEnded = false;
-              audio.onEnded.listen((_) => hasEnded = true);
-              audio.onError.listen((_) {
-                 print("Audio playback error for chunk!");
-                 hasEnded = true; 
-              });
-              
-              audio.play().catchError((e) {
-                 print("Play block by browser: $e");
-                 hasEnded = true;
-              });
-              
-              // Wait for chunk to finish, force continue after 10s if stuck
-              int timeoutCount = 0;
-              while (!hasEnded && timeoutCount < 100) { // 100 * 100ms = 10s max
-                 await Future.delayed(const Duration(milliseconds: 100));
-                 timeoutCount++;
+              if (kIsWeb) {
+                  final audio = html.AudioElement(url);
+                  bool hasEnded = false;
+                  audio.onEnded.listen((_) => hasEnded = true);
+                  audio.onError.listen((_) {
+                     print("Audio playback error for chunk!");
+                     hasEnded = true; 
+                  });
+                  audio.play().catchError((e) {
+                     print("Play block by browser: $e");
+                     hasEnded = true;
+                  });
+                  int timeoutCount = 0;
+                  while (!hasEnded && timeoutCount < 100) { 
+                     await Future.delayed(const Duration(milliseconds: 100));
+                     timeoutCount++;
+                  }
+              } else {
+                  await _audioPlayer.play(UrlSource(url));
+                  // Wait until the audio is completed
+                  bool hasEnded = false;
+                  var sub = _audioPlayer.onPlayerComplete.listen((event) {
+                    hasEnded = true;
+                  });
+                  int timeoutCount = 0;
+                  // Typically audio shouldn't be more than 10-15 seconds for 150 chars
+                  while (!hasEnded && timeoutCount < 150) { 
+                     await Future.delayed(const Duration(milliseconds: 100));
+                     timeoutCount++;
+                  }
+                  await sub.cancel();
               }
-              // Wait briefly before next chunk to avoid HTTP 429 Too Many Requests
               await Future.delayed(const Duration(milliseconds: 300));
            }
        } catch (e) {
-           print("Web TTS AudioElement playback failed: $e");
+           print("TTS Audio playback failed: $e");
        }
        return; 
     }
@@ -169,5 +185,6 @@ class VoiceService {
 
   Future<void> stop() async {
     await tts.stop();
+    await _audioPlayer.stop();
   }
 }

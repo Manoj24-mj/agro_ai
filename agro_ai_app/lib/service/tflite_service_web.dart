@@ -13,21 +13,60 @@ class TFLiteService {
     // pull from the actual AI model's training labels.
     
     final labelData = await rootBundle.loadString('assets/models_list.txt');
-    final allLabels = labelData.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    final allLabels = labelData.split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty && !s.toLowerCase().contains("unknown"))
+        .toList();
     
     final random = Random();
     
-    // Simulate detecting 1 to 3 diseases
-    int numDiseases = 1 + random.nextInt(3);
-    allLabels.shuffle();
-    final selectedLabels = allLabels.take(numDiseases).toList();
-
-    String diagnosisStr = selectedLabels.map((l) => "$l (${70 + random.nextInt(25)}%)").join(" AND ");
-    String remediesStr = selectedLabels.map((l) => "- For $l: Isolate and apply targeted treatment.").join("\n");
+    // Web Simulation: Just pick ONE label
+    final pickedLabel = allLabels[random.nextInt(allLabels.length)];
+    final isHealthy = pickedLabel.toLowerCase().contains("healthy");
+    final isUnknown = pickedLabel.toLowerCase().contains("unknown");
 
     final accuracy = 80 + random.nextInt(15);
     final temp = 24 + random.nextInt(8);
     final hum = 50 + random.nextInt(30);
+    
+    if (isUnknown) {
+      return "I could not identify the plant or disease offline. Please connect to the internet for a deep scan.";
+    }
+
+    if (isHealthy) {
+       return '''
+[ACCURACY: $accuracy]
+[SEVERITY: LOW]
+[WATER: 50]
+[TEMP: $temp]
+[HUMIDITY: $hum]
+
+---
+## 📋 Section 1: Metadata
+> 🌱 **Plant Type:** Detected from Image (Web Offline)
+- **Location & Climate:** Local Farm (Simulated Scan)
+
+---
+## 🔬 Section 2: Visual Evidence & Cause
+> 🦠 **Diagnosis:** $pickedLabel
+- **Evidence/Observation:** Plant appears vigorous and free of major diseases.
+> ⚠️ **Why it occurred:** Excellent care and suitable environmental conditions.
+
+---
+## 🧪 Section 3: The Prescription & Prevention
+**1. Immediate Remedies:**
+- Continue current care routine.
+
+**2. Eradication (Pesticides & Dosage):**
+> 🚨 **CRITICAL TREATMENT:** None required.
+
+**3. Recovery (Best Fertilizers):**
+> 💊 **RECOMMENDED FERTILIZER:** Standard organic compost to maintain health.
+
+**4. Future Prevention:**
+- Maintain optimal humidity and spacing.
+''';
+    }
 
     return '''
 [ACCURACY: $accuracy]
@@ -38,19 +77,19 @@ class TFLiteService {
 
 ---
 ## 📋 Section 1: Metadata
-- **Plant Type:** Detected from Image (Web Offline)
-- **Location & Climate:** Local Farm (Simulated Multi-Disease Scan)
+> 🌱 **Plant Type:** Detected from Image (Web Offline)
+- **Location & Climate:** Local Farm (Simulated Scan)
 
 ---
 ## 🔬 Section 2: Visual Evidence & Cause
-- **Diagnosis:** $diagnosisStr
-- **Evidence/Observation:** Detected multiple visual markers across different diseases.
-- **Why it occurred:** Often triggered by combined environmental stress ($hum% humidity and $temp°C).
+> 🦠 **Diagnosis:** $pickedLabel
+- **Evidence/Observation:** Detected visual markers corresponding to $pickedLabel.
+> ⚠️ **Why it occurred:** Often triggered by combined environmental stress ($hum% humidity and $temp°C).
 
 ---
 ## 🧪 Section 3: The Prescription & Prevention
 **1. Immediate Remedies:**
-$remediesStr
+- For $pickedLabel: Isolate and apply targeted treatment.
 
 **2. Eradication (Pesticides & Dosage):**
 > 🚨 **CRITICAL TREATMENT:** Standard broad-spectrum organic fungicide - 2ml/Liter.

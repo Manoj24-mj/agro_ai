@@ -105,7 +105,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         _messages.add(EdgeChat(user: "Bot", message: reply, isUser: false));
       });
       
-      // Save to Local History AND Firebase (Now enabled for Web!)
+      // Save to Local History AND Firebase
       if (!kIsWeb) {
         await DatabaseService.saveMessage("Bot", reply, false);
       }
@@ -117,6 +117,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         "LOW", 
         type: 'chat'
       );
+
+      final prefs = await SharedPreferences.getInstance();
+      final phone = prefs.getString('userPhone');
+      if (phone != null) {
+        await FirebaseService.saveChatMessage(
+          phone: phone,
+          message: msg,
+          reply: reply,
+        );
+      }
           // (Automatic Cloud upload removed. Manual save button added below instead.)
       
       if (_isVoiceEnabled) _voiceService.speak(reply); // Conditional Voice Output

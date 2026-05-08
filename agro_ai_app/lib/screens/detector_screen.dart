@@ -208,14 +208,14 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
 
 ---
 ## 📋 Section 1: Metadata
-- **Plant Type:** [Identify the plant]
+> 🌱 **Plant Type:** [Identify the plant]
 - **Location & Climate:** [Use environment data provided below]
 
 ---
 ## 🔬 Section 2: Visual Evidence & Cause
-- **Diagnosis:** [Name of disease/pest]
+> 🦠 **Diagnosis:** [Name of disease/pest]
 - **Evidence/Observation:** [What exactly do you see? Cropped macro context, e.g., 'aphids visible on lower leaves']
-- **Why it occurred:** [Explain in detail WHY this disease occurs, explicitly factoring in the climate/weather provided]
+> ⚠️ **Why it occurred:** [Explain in detail WHY this disease occurs, explicitly factoring in the climate/weather provided]
 
 ---
 ## 🧪 Section 3: The Prescription & Prevention

@@ -12,11 +12,16 @@ class TFLiteService {
     // To provide an output across "all diseases", we will dynamically
     // pull from the actual AI model's training labels.
     
-    final labelData = await rootBundle.loadString('assets/models_list.txt');
-    final allLabels = labelData.split('\n')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty && !s.toLowerCase().contains("unknown"))
-        .toList();
+    List<String> allLabels = [];
+    try {
+      final labelData = await rootBundle.loadString('assets/models_list.txt');
+      allLabels = labelData.split('\n')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty && !s.toLowerCase().contains("unknown"))
+          .toList();
+    } catch (e) {
+      allLabels = ["Tomato Blight", "Apple Scab", "Corn Rust"];
+    }
     
     final random = Random();
     

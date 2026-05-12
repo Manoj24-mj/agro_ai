@@ -24,6 +24,9 @@ import 'tips_screen.dart';
 import 'analytics_screen.dart'; 
 import 'monitoring_screen.dart';
 import 'ai_alerts_screen.dart';
+import 'schemes_screen.dart';
+import 'recommender_screen.dart';
+import 'ledger_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -747,6 +750,89 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               color: Colors.blueAccent,
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AnalyticsScreen())),
                               pulseValue: _vortexRotation.value + 2.0,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+            ),
+            const SizedBox(height: 30),
+            // 5. Govt & Finance Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), shape: BoxShape.circle),
+                    child: const Icon(Icons.account_balance_outlined, color: Colors.orange, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "Govt & Finance",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            AnimatedBuilder(
+              animation: _vortexController,
+              builder: (context, child) {
+                return Container(
+                  height: 160,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(35),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.orange.shade800,
+                        Colors.deepOrange.shade600,
+                      ],
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                    ),
+                    boxShadow: [
+                      BoxShadow(color: Colors.orange.withOpacity(0.2), blurRadius: 20, spreadRadius: 2),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(35),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        color: Colors.white.withOpacity(0.05),
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildDashboardButton(
+                              context: context,
+                              title: "Schemes",
+                              icon: Icons.assured_workload,
+                              color: Colors.yellowAccent,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SchemesScreen())),
+                              pulseValue: _vortexRotation.value + 0.5,
+                            ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: "Crop AI",
+                              icon: Icons.psychology,
+                              color: Colors.lightGreenAccent,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RecommenderScreen())),
+                              pulseValue: _vortexRotation.value + 1.0,
+                            ),
+                            _buildDashboardButton(
+                              context: context,
+                              title: "Khata",
+                              icon: Icons.account_balance_wallet,
+                              color: Colors.white,
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LedgerScreen())),
+                              pulseValue: _vortexRotation.value + 1.5,
                             ),
                           ],
                         ),

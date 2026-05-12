@@ -86,7 +86,7 @@ class VoiceService {
               String url = 'https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=$targetLangCode&q=${Uri.encodeComponent(chunk)}';
               
               if (kIsWeb) {
-                  final audio = html.AudioElement(url);
+                  final audio = html.AudioElement()..src = url;
                   bool hasEnded = false;
                   audio.onEnded.listen((_) => hasEnded = true);
                   audio.onError.listen((_) {

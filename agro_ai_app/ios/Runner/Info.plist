@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Smart Kisan needs camera access to scan plant diseases.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Smart Kisan needs the microphone for voice queries.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Smart Kisan needs location to fetch local weather.</string>
 </dict>
 </plist>

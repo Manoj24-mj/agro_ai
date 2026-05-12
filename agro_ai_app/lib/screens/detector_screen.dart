@@ -270,10 +270,30 @@ IMPORTANT: You must include the EXACT strings at the very beginning of your resp
         _voiceService.speak(result);
       }
     } catch (e) {
-      setState(() {
-        _messages.removeLast();
-        _messages.add(DetectorMessage(message: "Analysis error: ${e.toString()}", isUser: false));
-      });
+      // 🚨 RESILIENT FALLBACK: If Cloud AI fails for ANY reason (offline, network error, quota exceeded), 
+      // automatically switch to the Offline Edge AI model if an image is present!
+      if (image != null) {
+        try {
+          final offlineResult = await TFLiteService.predict(image.path);
+          setState(() {
+            _messages.removeLast();
+            _messages.add(DetectorMessage(message: offlineResult ?? "Offline analysis failed.", isUser: false, originalImage: image));
+          });
+          if (_isVoiceEnabled) {
+            _voiceService.speak(offlineResult ?? "Offline analysis failed.");
+          }
+        } catch (offlineErr) {
+           setState(() {
+              _messages.removeLast();
+              _messages.add(DetectorMessage(message: "Analysis error: Both Cloud and Offline AI failed. (${e.toString()})", isUser: false));
+           });
+        }
+      } else {
+        setState(() {
+          _messages.removeLast();
+          _messages.add(DetectorMessage(message: "Analysis error: ${e.toString()}. Please check your connection or upload an image to use offline mode.", isUser: false));
+        });
+      }
     }
     _scrollToBottom();
   }

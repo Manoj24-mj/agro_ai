@@ -9,7 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'country_selection_screen.dart';
 import 'package:agro_ai_app/service/firebase_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:agro_ai_app/localization.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -126,14 +126,26 @@ class _LoginScreenState extends State<LoginScreen> {
       if (kIsWeb) {
          // Step B: Firebase Phone Auth for Web
          _confirmationResult = await _auth.signInWithPhoneNumber(fullPhone);
-                  if (userData != null) {
+         if (userData != null) {
             setState(() {
               _foundUserData = userData;
               _userNameIfKnown = userData['name'] ?? "User";
               _currentFlow = AuthState.login; // Proceed with password
             });
-          } else {
-           setState(() => _currentFlow = AuthState.signup);
+         } else {
+            setState(() => _currentFlow = AuthState.signup);
+         }
+      } else if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.linux)) {
+         // DESKTOP BYPASS: Simulate sending OTP
+         _showSnackbar("Desktop Mode: Skipping Firebase OTP. Enter '123456' as OTP.", Colors.blue);
+         if (userData != null) {
+            setState(() {
+              _foundUserData = userData;
+              _userNameIfKnown = userData['name'] ?? "User";
+              _currentFlow = AuthState.login; // Proceed with password
+            });
+         } else {
+            setState(() => _currentFlow = AuthState.signup);
          }
       } else {
          // Step B: Mobile Auth - Requires verifyPhoneNumber
@@ -187,13 +199,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final fullPhone = "$_selectedCountryCode${_phoneController.text.trim()}";
 
     try {
-      // In Firebase Web, we already got confirmationResult in _processPhone
-      // If we need to re-trigger, we can.
-      if (_confirmationResult != null) {
+      if (kIsWeb) {
+         if (_confirmationResult != null) {
+            setState(() => _currentFlow = nextState);
+            _showSnackbar("Code sent via Firebase", Colors.green);
+         } else {
+            _confirmationResult = await _auth.signInWithPhoneNumber(fullPhone);
+            setState(() => _currentFlow = nextState);
+         }
+      } else if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.linux)) {
+         // Desktop Bypass
          setState(() => _currentFlow = nextState);
-         _showSnackbar("Code sent via Firebase", Colors.green);
+         _showSnackbar("Desktop Mode: Enter '123456' to verify.", Colors.blue);
       } else {
-         _confirmationResult = await _auth.signInWithPhoneNumber(fullPhone);
          setState(() => _currentFlow = nextState);
       }
     } catch (e) {
@@ -212,9 +230,21 @@ class _LoginScreenState extends State<LoginScreen> {
     final fullPhone = "$_selectedCountryCode${_phoneController.text.trim()}";
     
     try {
-      final UserCredential userCredential = await _confirmationResult!.confirm(otp);
-      
-      if (userCredential.user != null) {
+      bool isVerified = false;
+
+      if (kIsWeb) {
+         final UserCredential userCredential = await _confirmationResult!.confirm(otp);
+         isVerified = userCredential.user != null;
+      } else if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.linux)) {
+         // Desktop bypass validation
+         if (otp == "123456") {
+           isVerified = true;
+         } else {
+           throw Exception("Please enter 123456 for Desktop testing.");
+         }
+      }
+
+      if (isVerified) {
          if (mounted) {
             final prefs = await SharedPreferences.getInstance();
             final nameToSave = _currentFlow == AuthState.signupOtp 

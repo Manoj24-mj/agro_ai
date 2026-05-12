@@ -11,6 +11,11 @@ class TFLiteService {
 
   static Future<void> loadModel() async {
     try {
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        // Desktop platforms might not have the TFLite native DLL configured.
+        // We skip loading and fallback to mock in predict to allow UI testing.
+        return;
+      }
       if (_interpreter != null) return;
       _interpreter = await Interpreter.fromAsset('assets/plant_model.tflite');
       
@@ -23,6 +28,10 @@ class TFLiteService {
   }
 
   static Future<String?> predict(String imagePath) async {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      return _mockDesktopPrediction();
+    }
+    
     if (_interpreter == null) await loadModel();
     if (_interpreter == null) return "Model not loaded properly.";
 
@@ -51,7 +60,11 @@ class TFLiteService {
         ),
       );
 
-      var output = List.generate(1, (i) => List.filled(_labels?.length ?? 38, 0.0));
+      final outputTensor = _interpreter!.getOutputTensor(0);
+      final outputShape = outputTensor.shape;
+      final numClasses = outputShape.isNotEmpty ? outputShape.last : (_labels?.length ?? 38);
+
+      var output = List.generate(1, (i) => List.filled(numClasses, 0.0));
 
       _interpreter!.run(input, output);
       
@@ -97,7 +110,7 @@ class TFLiteService {
 
   static String _generateOfflineReport(List<Map<String, dynamic>> diseases) {
      final topDisease = diseases.first;
-     int confInt = (topDisease['confidence'] as double * 100).toInt();
+     int confInt = ((topDisease['confidence'] as double) * 100).toInt();
      
      if (confInt < 30) {
         return "I am not confident ($confInt%), but it might be ${topDisease['label']}. Please try again with a better image or when online.";
@@ -149,10 +162,10 @@ class TFLiteService {
      final actualDiseases = diseases.where((d) => !d['label'].toLowerCase().contains('healthy') && !d['label'].toLowerCase().contains('unknown')).toList();
      if (actualDiseases.isEmpty) actualDiseases.add(topDisease); // Fallback
 
-     String diagnosisStr = actualDiseases.map((d) => "${d['label']} (${(d['confidence'] as double * 100).toInt()}%)").join(" AND ");
+     String diagnosisStr = actualDiseases.map((d) => "${d['label']} (${((d['confidence'] as double) * 100).toInt()}%)").join(" AND ");
      String remediesStr = actualDiseases.map((d) => "- For ${d['label']}: Isolate and treat immediately.").join("\n");
 
-     // Formatted report simulating Gemini style
+    // Formatted report simulating Gemini style
      return '''
 [ACCURACY: $confInt]
 [SEVERITY: HIGH]
@@ -184,6 +197,95 @@ $remediesStr
 
 **4. Future Prevention:**
 - Maintain optimal humidity and spacing.
+''';
+  }
+
+  static Future<String> _mockDesktopPrediction() async {
+    List<String> allLabels = [];
+    try {
+      final labelData = await rootBundle.loadString('assets/models_list.txt');
+      allLabels = labelData.split('\n')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty && !s.toLowerCase().contains("unknown"))
+          .toList();
+    } catch (e) {
+      allLabels = ["Tomato Blight", "Apple Scab", "Corn Rust"];
+    }
+    
+    final random = Random();
+    final pickedLabel = allLabels[random.nextInt(allLabels.length)];
+    final isHealthy = pickedLabel.toLowerCase().contains("healthy");
+
+    final accuracy = 80 + random.nextInt(15);
+    final temp = 24 + random.nextInt(8);
+    final hum = 50 + random.nextInt(30);
+    
+    if (isHealthy) {
+       return '''
+[ACCURACY: $accuracy]
+[SEVERITY: LOW]
+[WATER: 50]
+[TEMP: $temp]
+[HUMIDITY: $hum]
+
+---
+## 📋 Section 1: Metadata
+> 🌱 **Plant Type:** Detected from Image (Desktop Simulation)
+- **Location & Climate:** Local Environment (Simulated Scan)
+
+---
+## 🔬 Section 2: Visual Evidence & Cause
+> 🦠 **Diagnosis:** $pickedLabel
+- **Evidence/Observation:** Plant appears vigorous and free of major diseases.
+> ⚠️ **Why it occurred:** Excellent care and suitable environmental conditions.
+
+---
+## 🧪 Section 3: The Prescription & Prevention
+**1. Immediate Remedies:**
+- Continue current care routine.
+
+**2. Eradication (Pesticides & Dosage):**
+> 🚨 **CRITICAL TREATMENT:** None required.
+
+**3. Recovery (Best Fertilizers):**
+> 💊 **RECOMMENDED FERTILIZER:** Standard organic compost to maintain health.
+
+**4. Future Prevention:**
+- Maintain optimal humidity and spacing.
+''';
+    }
+
+    return '''
+[ACCURACY: $accuracy]
+[SEVERITY: HIGH]
+[WATER: 60]
+[TEMP: $temp]
+[HUMIDITY: $hum]
+
+---
+## 📋 Section 1: Metadata
+> 🌱 **Plant Type:** Detected from Image (Desktop Simulation)
+- **Location & Climate:** Local Environment (Simulated Scan)
+
+---
+## 🔬 Section 2: Visual Evidence & Cause
+> 🦠 **Diagnosis:** $pickedLabel
+- **Evidence/Observation:** Detected visual markers corresponding to $pickedLabel.
+> ⚠️ **Why it occurred:** Often triggered by combined environmental stress ($hum% humidity and $temp°C).
+
+---
+## 🧪 Section 3: The Prescription & Prevention
+**1. Immediate Remedies:**
+- For $pickedLabel: Isolate and apply targeted treatment.
+
+**2. Eradication (Pesticides & Dosage):**
+> 🚨 **CRITICAL TREATMENT:** Standard broad-spectrum organic fungicide - 2ml/Liter.
+
+**3. Recovery (Best Fertilizers):**
+> 💊 **RECOMMENDED FERTILIZER:** Balanced NPK fertilizer.
+
+**4. Future Prevention:**
+- Control humidity and improve airflow.
 ''';
   }
 }

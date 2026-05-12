@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/intro_animation_screen.dart';
 import 'service/market_service.dart';
+import 'service/messaging_service.dart';
 
 import 'package:agro_ai_app/localization.dart';
 
@@ -14,6 +15,9 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     
+    // Initialize Push Notifications
+    MessagingService.initialize().catchError((e) => debugPrint("Messaging init error: $e"));
+
     // Initialize Localization
     await Lang.init();
     

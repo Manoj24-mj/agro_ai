@@ -1,0 +1,34 @@
+HOW COMPLEXITY VARIABLES ARE USED FOR SYSTEM DESIGN AND SCALABILITY
+
+This document outlines how the mathematical variables (n, v, d, m, s, w, e, k, p) are used to analyze system scaling, resource usage, and performance boundaries.
+
+1. EDGE BOUNDARIES (Constant Scaling: O(1))
+--------------------------------------------------------------------------------
+At the edge (on the farmer's smartphone), the execution of the disease detection scanner does not depend on any growing database or network scale. 
+- MobileNetV2 requires a fixed image dimension (224x224x3).
+- The neural network weights are compiled and frozen into a 9.5MB TFLite binary.
+- Result: The inference time is bounded at O(1) constant time, and RAM footprint is bounded at O(1) constant space. This prevents app crashes and lag regardless of how many crops or farmers join the platform.
+
+2. DATABASE LOOKUP SPEED (Logarithmic Scaling: O(log M))
+--------------------------------------------------------------------------------
+When the cloud backend receives a packet from a client containing location coordinates, it must query the regional soil profile database of size M.
+- By structuring the soil tables with spatial B-Tree indexing, search time scales at O(log M) instead of O(M).
+- If the database grows from 1,000 records to 1,000,000 records, the lookup steps only increase from ~10 index operations to ~20 index operations. This guarantees fast advisory generation.
+
+3. ADVISORY CALCULATION DEPTH (Linear Parameter Scaling: O(S + W))
+--------------------------------------------------------------------------------
+The dynamic rules engine computes water and nutrient guidelines by analyzing S soil properties and W weather variables.
+- The advisory generation follows linear scaling: O(S + W).
+- Because S (soil traits) and W (weather parameters) are small, bounded values (e.g., S < 10, W < 10), this calculation executes in microseconds (O(1) in practice), posing zero server load.
+
+4. USER FEEDBACK SENTIMENT PROCESSING (Linear Text Scaling: O(N))
+--------------------------------------------------------------------------------
+When a farmer leaves a comment rating the advisory's success, the NLP feedback engine parses the string.
+- Sentiment Analysis (VADER): Evaluates N words against a lexicon dictionary of size D. The time scales as O(N) because it scans the string token by token. The memory scales as O(D) to keep the dictionary in memory. Since N is typically short (under 50 words) and D is static (7,500 words), sentiment processing is immediate.
+- Feature Vectorizer (TF-IDF): Encodes the N-word comment against a vocabulary of size V. The time complexity is O(N * log V) due to vocabulary search operations. This isolates the terms to detect if "rust", "fertilizer", or "blight" is being flagged.
+
+5. MODEL RETRAINING COSTS (Polynomial Training Scaling: O(E * K * P))
+--------------------------------------------------------------------------------
+To continuously correct the AI model, new field photos (K samples) are backpropagated through the model of parameter size P over E epochs.
+- Time complexity is O(E * K * P), meaning cost scales directly with retraining frequency (E), dataset growth (K), and model size (P).
+- Application: Because this is computationally heavy, the architecture schedules this offline on a dedicated GPU server rather than doing it synchronously in the main backend pipeline.

@@ -1,0 +1,63 @@
+# Literature Survey: Mobile-Based Plant Pathology and Adaptive Agricultural Decision Support Systems
+
+## 1. Introduction
+Modern agricultural systems face significant challenges in diagnosing plant diseases, optimizing resource inputs, and providing timely advice to smallholder farmers. This survey reviews the academic literature across six core pillars: traditional pathology constraints, deep learning systems in agriculture, lightweight convolutional architectures for edge computing, open-loop decision support systems, low-bandwidth communication channels, and dynamic feedback systems in machine learning.
+
+---
+
+## 2. Key Findings
+
+### 2.1 Traditional Plant Pathology Methods
+Conventional approaches to plant disease identification heavily rely on visual inspection by expert agronomists, or laboratory-based diagnostics such as Polymerase Chain Reaction (PCR), Enzyme-Linked Immunosorbent Assay (ELISA), and immunofluorescence [1]. As analyzed by Fang & Ramasamy [1], while laboratory diagnostics are highly sensitive and specific, they require expensive equipment, specialized reagents, and trained personnel. Similarly, Martinelli et al. [2] highlight that visual inspection is highly subjective, error-prone, and slow. These methods are economically and logistically inaccessible to smallholder farmers in developing nations, who often lack access to extension agents, resulting in delayed treatments and catastrophic crop failures [2].
+
+### 2.2 Machine Learning in Agriculture
+To automate disease detection, computer vision models—particularly Convolutional Neural Networks (CNNs)—have been widely adopted. Mohanty, Hughes, & Salathé [3] demonstrated that CNNs pre-trained on ImageNet and fine-tuned on the *PlantVillage* dataset (containing over 54,000 images across 14 crop species) can achieve classification accuracies exceeding 99%. However, standard deep architectures like VGG-16 [4] and ResNet-50 [5] require substantial memory (often exceeding hundreds of megabytes) and high inference latency. These resource constraints limit their direct deployment on mobile devices, making them dependent on cloud infrastructure which is unviable in rural regions lacking reliable internet connectivity [3].
+
+### 2.3 Lightweight Convolutional Neural Networks
+To bypass cloud dependency, research has shifted toward lightweight architectures designed for edge execution. The seminal work on **MobileNetV2** by Sandler et al. [6] introduced inverted residuals and linear bottlenecks, which allow the network to retain a high capacity for feature representation while drastically reducing parameters and operations. MobileNetV2 uses depthwise separable convolutions [7] to minimize FLOPs. A compiled TensorFlow Lite (TFLite) MobileNetV2 model can compress to approximately 9.5MB, making it ideal for edge computing on low-cost smartphones [6]. This allows real-time, offline classification of crop leaves in deep rural fields without cellular data requirements.
+
+### 2.4 Agricultural Decision Support Systems (DSS)
+Once a disease is identified, farmers require decision support regarding fertilizer, water, and treatment applications. Rose et al. [8] point out that traditional agricultural software provides recommendations derived from rigid, theoretical formulas. These systems operate in an "open-loop" fashion, failing to ingest real-time local soil conditions, weather variations, or the practical field experiences of farmers. Lindblom et al. [9] argue that for DSS to be adopted successfully, they must move away from static, one-size-fits-all calculations and dynamically adapt to localized microclimates and farmer feedback.
+
+### 2.5 Low-Cost Rural Communication Bridges
+The delivery mechanism of agricultural advice must align with rural infrastructure constraints. High-bandwidth applications fail in deep rural areas due to inconsistent cellular networks. Cole & Fernando [10] show that low-cost, low-bandwidth channels such as SMS and WhatsApp are highly effective for mobile agricultural extension. SMS provides a ubiquitous reach without requiring internet connectivity [11], while WhatsApp allows for structured, text-and-image-based interactions [11]. Using these low-cost digital communication channels as bridges significantly lowers the barrier to entry for smallholders to access actionable agricultural guidance [10].
+
+### 2.6 Dynamic Feedback Systems in AI
+Machine learning systems deployed in production suffer from "data drift" and model degradation over time if they operate without active monitoring. In their foundational study on the engineering challenges of AI, Sculley et al. [12] identify the lack of robust feedback loops as a primary driver of technical debt. Integrating user telemetry and utilizing Natural Language Processing (NLP) to analyze unstructured comments provides a mechanism for continuous alignment [13]. Closed-loop telemetry pipelines allow errors or misclassifications reported by farmers in the field to be flagged, aggregated, and fed back into the system for model retraining and advisory calibration [12, 13].
+
+---
+
+## 3. Conclusion
+The academic literature demonstrates that while deep learning and mobile technology offer transformative opportunities for agricultural pathology, traditional frameworks fall short in edge efficiency, connectivity robustness, and localized adaptability. Heavy models (e.g., VGG-16, ResNet-50) require cloud support, whereas open-loop decision support systems do not adapt to localized variables. 
+
+To overcome these barriers, a closed-loop system is required. By deploying a lightweight **MobileNetV2** architecture optimized for edge devices (9.5MB TFLite model), farmers can diagnose crop diseases offline. Coupling this offline diagnostic capability with low-bandwidth communication bridges (SMS/WhatsApp) ensures reliable delivery of fertilizer and water recommendations. Finally, integrating a dynamic, telemetry-driven feedback loop using NLP-based user feedback transforms the software from an open-loop model into an adaptive, self-correcting system. This architecture bridges the gap between state-of-the-art computer vision and the practical, infrastructure-constrained realities of rural agriculture.
+
+---
+
+## 4. References
+
+[1] Fang, Y., & Ramasamy, R. P. (2015). Current and prospective methods for plant disease detection. *Biosensors*, 5(3), 537-561. https://doi.org/10.3390/bios5030537
+
+[2] Martinelli, F., Scalenghe, R., Davino, S., Panno, S., Scuderi, G., Ruisi, P., ... & Dandekar, A. M. (2015). Advanced methods of plant disease detection. A review. *Agronomy for Sustainable Development*, 35(1), 1-25. https://doi.org/10.1007/s13593-014-0246-1
+
+[3] Mohanty, S. P., Hughes, D. P., & Salathé, M. (2016). Using deep learning for image-based plant disease detection. *Frontiers in Plant Science*, 7, 1419. https://doi.org/10.3389/fpls.2016.01419
+
+[4] Simonyan, K., & Zisserman, A. (2014). Very deep convolutional networks for large-scale image recognition. *arXiv preprint arXiv:1409.1556*. https://arxiv.org/abs/1409.1556
+
+[5] He, K., Zhang, X., Ren, S., & Sun, J. (2016). Deep residual learning for image recognition. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 770-778. https://doi.org/10.1109/CVPR.2016.90
+
+[6] Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., & Chen, L. C. (2018). MobileNetV2: Inverted residuals and linear bottlenecks. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*, 4510-4520. https://doi.org/10.1109/CVPR.2018.00474
+
+[7] Howard, A. G., Zhu, M., Chen, B., Kalenichenko, D., Wang, W., Weyand, T., ... & Adam, H. (2017). MobileNets: Efficient convolutional neural networks for mobile vision applications. *arXiv preprint arXiv:1704.04861*. https://arxiv.org/abs/1704.04861
+
+[8] Rose, D. C., Sutherland, W. J., Barnes, A. P., Borthwick, F., Ffoulkes, C., Hall, C., ... & Dicks, L. V. (2016). Decision support tools for agriculture: Towards effective design and delivery. *Agricultural Systems*, 149, 165-174. https://doi.org/10.1016/j.agsy.2016.09.009
+
+[9] Lindblom, J., Lundström, C., Ljung, M., & Jonsson, A. (2017). Promoting agricultural technologies through decision support systems: a review. *Agronomy for Sustainable Development*, 37, 1-16. https://doi.org/10.1007/s13593-017-0448-1
+
+[10] Cole, S., & Fernando, A. N. (2021). Mobile'izing agricultural advice: Technology adoption, diffusion, and yields. *American Economic Journal: Applied Economics*, 13(1), 125-154. https://doi.org/10.1257/app.20190096
+
+[11] Baumüller, H. (2018). The little we know: An assessment of State-of-the-Art research on the agricultural outcomes of mobile phone use in Africa. *The Electronic Journal of Information Systems in Developing Countries*, 84(3), e12028. https://doi.org/10.1002/isd2.12028
+
+[12] Sculley, D., Holt, G., Golovin, D., Davydov, E., Phillips, T., Ebner, S., ... & Young, M. (2015). Hidden technical debt in machine learning systems. *Advances in Neural Information Processing Systems (NeurIPS)*, 28, 2503-2511.
+
+[13] Wang, Z. J., Choi, D., Xu, S., & Yang, D. (2021). Putting humans in the natural language processing loop: A survey. In *Proceedings of the First Workshop on Bridging Human–Computer Interaction and Natural Language Processing*, 47-52. https://doi.org/10.18653/v1/2021.hcinlp-1.7

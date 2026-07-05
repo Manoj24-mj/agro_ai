@@ -1,0 +1,32 @@
+SYSTEM OPERATION COMPLEXITY SUMMARY
+
+The table below details the algorithmic Time and Space Complexities for the primary computational stages of the Adaptive, Edge-AI-Enabled Agricultural Decision Support System.
+
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+| Operation / Component  | Time (Big-O)| Space (Big-O)| Environment       | Execution Context & Scaling Factors                     |
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+| Edge Leaf Inference    | O(1)        | O(1)         | Edge (Offline)    | Inputs are resized to a static 224x224x3 frame.         |
+| (MobileNetV2 Model)    |             |              |                   | Model FLOPs and memory footprint (9.5MB) are constant.  |
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+| Local Queue Write      | O(1)        | O(1)         | Edge (Offline)    | Storing metadata, classification class, and location    |
+| (SQLite / Buffer)      |             |              |                   | coordinates in a local ring-buffer structure.           |
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+| Database Query         | O(log M)    | O(1)         | Cloud Backend     | Querying localized soil and weather tables of size M    |
+| (Soil / Weather index) |             |              |                   | using indexed spatial/geographic coordinate keys.       |
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+| Advisory Calculation   | O(S + W)    | O(S + W)     | Cloud Backend     | Computing recommendations given S soil variables and W  |
+| (Dynamic Rules Engine) |             |              |                   | meteorological forecasts. Linear to parameter dimensions.|
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+| Feedback Sentiment     | O(N)        | O(D)         | Cloud Backend     | Lexicon-based evaluation of N input feedback tokens     |
+| Analysis (VADER NLP)   |             |              |                   | against a static dictionary structure of size D.        |
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+| NLP Feature Vectorizer | O(N * log V)| O(V)         | Cloud Backend     | Tokenization and indexing of a feedback comment of      |
+| (TF-IDF / Bow Encode)  |             |              |                   | length N against a pre-defined vocabulary of size V.    |
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+| Continuous Retraining  | O(E * K)    | O(P)         | Training Server   | Batch backpropagation training over E epochs with K     |
+| (Incremental Batch)    |             |              |                   | training samples. Model parameters P scale storage.     |
++------------------------+-------------+--------------+-------------------+---------------------------------------------------------+
+
+Key Insights:
+1. Edge Operations [O(1) Complexity]: Local model inference is strictly O(1) because the input image tensor shape is normalized and model parameters are frozen, guaranteeing predictable low latency on client devices.
+2. Cloud Operations: Database lookups scale logarithmically due to B-Tree spatial indexing, while NLP text analysis scales linearly with the length of the comments entered by the farmers, keeping server execution overhead minimal.

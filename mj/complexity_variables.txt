@@ -1,0 +1,38 @@
+LEGEND FOR COMPLEXITY TABLE VARIABLES
+
+This document defines the mathematical notations and scaling variables used to analyze the Time and Space Complexities of the Edge-AI Agricultural Decision Support System.
+
+--------------------------------------------------------------------------------
+VARIABLE | SYSTEM COMPONENT       | DESCRIPTION & TECHNICAL CONTEXT
+--------------------------------------------------------------------------------
+N        | Natural Language (NLP) | The length (number of words or tokens) of the 
+         |                        | feedback comment or text review submitted by a farmer.
+         |                        | Time complexity scales linearly with the comment length.
+--------------------------------------------------------------------------------
+V        | Natural Language (NLP) | Vocabulary Size. The total number of unique words or 
+         |                        | features tracked in the TF-IDF feature index.
+--------------------------------------------------------------------------------
+D        | Natural Language (NLP) | Dictionary/Lexicon Size. The total number of pre-rated 
+         |                        | words in the sentiment library (e.g., VADER). This is 
+         |                        | a static value that dictates backend memory allocation.
+--------------------------------------------------------------------------------
+M        | Database (Cloud)       | Database Table Size. The total number of stored regional 
+         |                        | soil profiles and localized microclimate records.
+--------------------------------------------------------------------------------
+S        | Decision Engine        | Soil Parameters. The number of soil variables processed 
+         |                        | (e.g., Nitrogen, Phosphorus, Potassium (N-P-K), pH, 
+         |                        | moisture index, organic carbon content).
+--------------------------------------------------------------------------------
+W        | Decision Engine        | Weather Variables. The number of meteorological parameters 
+         |                        | parsed (e.g., humidity, temperature, wind speed, solar 
+         |                        | radiation, precipitation likelihood).
+--------------------------------------------------------------------------------
+E        | Machine Learning (ML)  | Training Epochs. The number of complete passes the 
+         |                        | retraining algorithm makes through the entire dataset.
+--------------------------------------------------------------------------------
+K        | Machine Learning (ML)  | Retraining Samples. The number of crop leaf images 
+         |                        | compiled in the training dataset for model optimization.
+--------------------------------------------------------------------------------
+P        | Machine Learning (ML)  | Model Parameters. The total number of weight connections 
+         |                        | and biases in the convolutional neural network.
+--------------------------------------------------------------------------------
